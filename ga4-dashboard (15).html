@@ -1,0 +1,1671 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GA4 분석 대시보드</title>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0a0a0a; --bg2: #111111; --bg3: #1a1a1a;
+    --border: rgba(255,255,255,0.08); --border2: rgba(255,255,255,0.14);
+    --text: #f0f0f0; --text2: #b0b0b0; --text3: #777;
+    --accent: #4f8ef7; --accent2: #2ecc8a; --danger: #e05555;
+    --healthcare: #a78bfa; --medical: #34d399; --amber: #f59e0b; --influencer: #f472b6;
+    --font: 'Geist', sans-serif; --mono: 'Geist Mono', monospace;
+  }
+  body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh; }
+  .app { display: flex; min-height: 100vh; }
+
+  .sidebar { width: 220px; flex-shrink: 0; border-right: 1px solid var(--border); padding: 2rem 1.25rem; display: flex; flex-direction: column; gap: 1.5rem; position: sticky; top: 0; height: 100vh; overflow-y: auto; }
+  .logo { font-size: 13px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text2); }
+  .logo span { color: var(--accent); }
+  .nav { display: flex; flex-direction: column; gap: 4px; }
+  .nav-label { font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: #888; padding: 4px 10px; margin-top: 8px; }
+  .nav-item { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 6px; font-size: 13px; color: #bbb; cursor: pointer; border: none; background: none; width: 100%; text-align: left; transition: all 0.15s; }
+  .nav-item:hover { background: var(--bg3); color: var(--text); }
+  .nav-item.active { background: var(--bg3); color: var(--text); }
+  .nav-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--text3); flex-shrink: 0; }
+  .nav-item.active .nav-dot { background: var(--accent); }
+  .dot-hc { background: var(--healthcare) !important; }
+  .dot-md { background: var(--medical) !important; }
+  .dot-inf { background: var(--influencer) !important; }
+  .dot-ch { background: var(--amber) !important; }
+  .dot-pay { background: var(--accent2) !important; }
+  .dot-mem { background: var(--accent) !important; }
+
+  .main { flex: 1; padding: 2.5rem 2rem; overflow-x: hidden; }
+  .page-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 2rem; gap: 1rem; flex-wrap: wrap; }
+  .page-title { font-size: 22px; font-weight: 500; margin-bottom: 4px; }
+  .page-sub { font-size: 13px; color: #bbb; font-family: var(--mono); }
+  .header-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+  /* 날짜 선택 */
+  .date-tabs { display: flex; gap: 4px; background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 4px; }
+  .date-tab { padding: 5px 14px; border-radius: 5px; font-size: 12px; font-weight: 500; color: var(--text2); cursor: pointer; border: none; background: none; transition: all 0.15s; font-family: var(--font); }
+  .date-tab:hover { color: var(--text); }
+  .date-tab.active { background: var(--bg3); color: var(--text); border: 1px solid var(--border2); }
+
+  .date-custom { display: flex; align-items: center; gap: 6px; background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 4px 10px; }
+  .date-custom input { background: none; border: none; color: var(--text2); font-size: 12px; font-family: var(--mono); cursor: pointer; outline: none; width: 100px; }
+  .date-custom input:focus { color: var(--text); }
+  .date-custom span { color: var(--text3); font-size: 12px; }
+  .date-custom button { padding: 4px 10px; background: var(--accent); border: none; border-radius: 5px; color: white; font-size: 12px; cursor: pointer; font-family: var(--font); }
+
+  .btn-csv { display: flex; align-items: center; gap: 6px; padding: 7px 14px; background: var(--bg3); border: 1px solid var(--border2); border-radius: 8px; font-size: 12px; font-weight: 500; color: var(--accent2); cursor: pointer; font-family: var(--font); transition: all 0.15s; }
+  .btn-csv:hover { background: rgba(46,204,138,0.1); }
+
+  #login-view { display: flex; align-items: center; justify-content: center; min-height: 60vh; }
+  .login-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 16px; padding: 2.5rem; max-width: 420px; width: 100%; text-align: center; }
+  .login-icon { width: 52px; height: 52px; background: var(--bg3); border: 1px solid var(--border2); border-radius: 12px; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem; }
+  .login-card h3 { font-size: 18px; font-weight: 500; margin-bottom: 8px; }
+  .login-card p { font-size: 13px; color: var(--text2); margin-bottom: 1.5rem; line-height: 1.6; }
+  .btn-google { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; padding: 11px 16px; background: var(--bg3); border: 1px solid var(--border2); border-radius: 8px; font-size: 14px; font-weight: 500; color: var(--text); cursor: pointer; transition: all 0.15s; font-family: var(--font); }
+  .btn-google:hover:not(:disabled) { background: #1f1f1f; border-color: rgba(255,255,255,0.2); }
+  .btn-google:disabled { opacity: 0.4; cursor: not-allowed; }
+  .status-msg { margin-top: 12px; font-size: 12px; color: var(--text3); font-family: var(--mono); }
+  .error-box { margin-top: 12px; padding: 10px 14px; background: rgba(224,85,85,0.1); border: 1px solid rgba(224,85,85,0.3); border-radius: 6px; font-size: 12px; color: #e07777; text-align: left; }
+
+  #dashboard-view { display: none; }
+
+  .metrics-grid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 12px; margin-bottom: 1.5rem; }
+  .metrics-grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 12px; margin-bottom: 1.5rem; }
+  .metrics-grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 12px; margin-bottom: 1.5rem; }
+  .metric-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; transition: border-color 0.2s; }
+  .metric-card:hover { border-color: var(--border2); }
+  .metric-card.highlight { border-color: rgba(46,204,138,0.3); background: rgba(46,204,138,0.04); }
+  .metric-label { font-size: 11px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: #aaa; margin-bottom: 6px; }
+  .metric-value { font-size: 22px; font-weight: 500; color: var(--text); font-family: var(--mono); letter-spacing: -0.02em; word-break: break-all; }
+  .metric-value.sm { font-size: 18px; }
+  .metric-desc { font-size: 12px; color: #999; margin-top: 6px; line-height: 1.5; }
+  .metric-value.green { color: var(--accent2); }
+  .metric-value.amber { color: var(--amber); }
+  .metric-value.blue { color: var(--accent); }
+  .metric-value.pink { color: var(--influencer); }
+  .metric-value.purple { color: var(--healthcare); }
+
+  .cat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 1.5rem; }
+  .cat-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; }
+  .cat-header { display: flex; align-items: center; gap: 8px; margin-bottom: 1rem; }
+  .cat-badge { font-size: 11px; font-weight: 500; padding: 3px 10px; border-radius: 20px; }
+  .badge-hc { background: rgba(167,139,250,0.15); color: var(--healthcare); border: 1px solid rgba(167,139,250,0.3); }
+  .badge-md { background: rgba(52,211,153,0.12); color: var(--medical); border: 1px solid rgba(52,211,153,0.3); }
+  .badge-inf { background: rgba(244,114,182,0.12); color: var(--influencer); border: 1px solid rgba(244,114,182,0.3); }
+  .cat-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .cat-metric-label { font-size: 11px; color: #aaa; margin-bottom: 4px; }
+  .cat-metric-val { font-size: 18px; font-weight: 500; font-family: var(--mono); }
+  .val-hc { color: var(--healthcare); }
+  .val-md { color: var(--medical); }
+  .val-inf { color: var(--influencer); }
+
+  .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 1.5rem; }
+  .chart-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; }
+  .chart-title { font-size: 12px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: #bbb; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
+  .chart-desc { font-size: 12px; color: #999; margin-bottom: 1.25rem; line-height: 1.5; }
+  .live-dot { width: 6px; height: 6px; background: var(--accent2); border-radius: 50%; animation: pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;}50%{opacity:.3;} }
+
+  .hbar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .hbar-label { font-size: 12px; color: #ccc; width: 110px; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--mono); }
+  .hbar-track { flex: 1; height: 8px; background: var(--bg3); border-radius: 4px; overflow: hidden; }
+  .hbar-fill { height: 100%; border-radius: 4px; transition: width 0.6s ease; }
+  .hbar-val { font-size: 12px; color: #ccc; width: 65px; text-align: right; flex-shrink: 0; font-family: var(--mono); }
+
+  /* 퍼널 */
+  .funnel-wrap { display: flex; gap: 2px; margin: 1rem 0; }
+  .funnel-step { flex: 1; text-align: center; padding: 1.25rem 0.5rem; position: relative; border-radius: 4px; }
+  .funnel-step:not(:last-child)::after { content: '▶'; position: absolute; right: -8px; top: 50%; transform: translateY(-50%); color: var(--text3); font-size: 11px; z-index: 1; }
+  .funnel-step-label { font-size: 10px; color: var(--text3); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .funnel-step-num { font-size: 20px; font-weight: 500; font-family: var(--mono); color: var(--text); margin-bottom: 4px; }
+  .funnel-step-pct { font-size: 12px; font-family: var(--mono); color: var(--accent2); }
+  .funnel-step-drop { font-size: 11px; color: var(--danger); margin-top: 2px; }
+
+  /* 회원가입 게이지 */
+  .signup-gauge { margin: 1rem 0; }
+  .gauge-track { height: 12px; background: var(--bg3); border-radius: 6px; overflow: hidden; margin: 8px 0 6px; }
+  .gauge-fill { height: 100%; border-radius: 6px; background: var(--accent); transition: width 0.6s ease; }
+  .gauge-labels { display: flex; justify-content: space-between; font-size: 11px; color: var(--text3); font-family: var(--mono); }
+
+  /* 채널 */
+  .channel-grid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 12px; margin-bottom: 1.5rem; }
+  .channel-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; }
+  .channel-name { font-size: 13px; font-weight: 500; margin-bottom: 1rem; display: flex; align-items: center; gap: 8px; }
+  .channel-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .channel-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .ch-label { font-size: 11px; color: #aaa; margin-bottom: 2px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .ch-val { font-size: 16px; font-weight: 500; font-family: var(--mono); }
+
+  /* 비율 바 */
+  .ratio-bar { height: 12px; border-radius: 6px; overflow: hidden; display: flex; margin: 8px 0 6px; }
+  .ratio-new { background: var(--accent); }
+  .ratio-return { background: var(--accent2); }
+  .ratio-legend { display: flex; gap: 16px; font-size: 12px; color: #aaa; }
+  .ratio-legend span { display: flex; align-items: center; gap: 4px; }
+  .legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+  /* 테이블 */
+  .full-table-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; margin-bottom: 1.5rem; }
+  .tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .tbl th { text-align: right; color: #aaa; font-weight: 400; font-size: 11px; letter-spacing: 0.05em; text-transform: uppercase; padding: 0 0 10px; border-bottom: 1px solid var(--border); cursor: pointer; user-select: none; white-space: nowrap; transition: color 0.15s; }
+  .tbl th:first-child { text-align: left; }
+  .tbl th:hover { color: var(--text2); }
+  .tbl th.sort-asc::after { content: ' ↑'; color: var(--accent); }
+  .tbl th.sort-desc::after { content: ' ↓'; color: var(--accent); }
+  .tbl td { padding: 10px 0; color: #c0c0c0; border-bottom: 1px solid var(--border); font-family: var(--mono); font-size: 12px; text-align: right; }
+  .tbl td:first-child { color: var(--text); font-family: var(--font); font-size: 13px; text-align: left; }
+  .tbl tr:last-child td { border-bottom: none; }
+  .tbl tr:hover td { background: rgba(255,255,255,0.02); }
+
+  .pill { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-family: var(--mono); }
+  .pill-green { background: rgba(46,204,138,0.12); color: var(--accent2); }
+  .pill-blue { background: rgba(79,142,247,0.12); color: var(--accent); }
+  .pill-amber { background: rgba(245,158,11,0.12); color: var(--amber); }
+  .pill-pink { background: rgba(244,114,182,0.12); color: var(--influencer); }
+
+  .section-divider { font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: #888; margin: 1.5rem 0 1rem; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+
+  .insight-box { background: rgba(79,142,247,0.06); border: 1px solid rgba(79,142,247,0.2); border-radius: 10px; padding: 1rem 1.25rem; margin-bottom: 1rem; font-size: 13px; color: var(--text2); line-height: 1.7; }
+  .insight-box strong { color: var(--accent); font-weight: 500; }
+
+  .loading-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 3rem; gap: 12px; color: var(--text3); font-size: 13px; font-family: var(--mono); }
+  .spinner { width: 20px; height: 20px; border: 1.5px solid var(--border2); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* 하단 탭바 → 상단 탭바 */
+  .mobile-tabs { display: none; position: sticky; top: 0; left: 0; right: 0; background: #0e0e0e; border-bottom: 1px solid var(--border); z-index: 100; }
+  .mobile-tabs-wrap { position: relative; overflow: hidden; }
+  .mobile-tabs-inner { display: flex; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+  .mobile-tabs-inner::-webkit-scrollbar { display: none; }
+  .mobile-tab { display: flex; flex-direction: row; align-items: center; gap: 5px; padding: 10px 14px; font-size: 12px; color: #888; cursor: pointer; border: none; background: none; font-family: var(--font); white-space: nowrap; border-bottom: 2px solid transparent; transition: all 0.15s; }
+  .mobile-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .mobile-tab-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+  /* 스크롤 화살표 */
+  .scroll-hint { position: absolute; right: 0; top: 0; bottom: 0; width: 36px; background: linear-gradient(to right, transparent, #0e0e0e); display: flex; align-items: center; justify-content: flex-end; padding-right: 8px; pointer-events: none; font-size: 16px; color: #666; transition: opacity 0.3s; }
+  .scroll-hint.hidden { opacity: 0; }
+
+  /* 캘린더 날짜 선택 팝업 */
+  .date-picker-btn { display: flex; align-items: center; gap: 6px; padding: 6px 12px; background: var(--bg2); border: 1px solid var(--border2); border-radius: 8px; font-size: 12px; color: #ccc; cursor: pointer; font-family: var(--mono); white-space: nowrap; }
+  .date-picker-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .date-picker-popup { display: none; position: absolute; top: calc(100% + 8px); right: 0; background: #1a1a1a; border: 1px solid var(--border2); border-radius: 12px; padding: 1rem; z-index: 200; min-width: 280px; box-shadow: 0 8px 32px rgba(0,0,0,0.5); }
+  .date-picker-popup.open { display: block; }
+  .date-picker-row { display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; }
+  .date-picker-label { font-size: 11px; color: #aaa; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .date-picker-input { width: 100%; padding: 8px 10px; background: var(--bg3); border: 1px solid var(--border2); border-radius: 6px; color: var(--text); font-size: 13px; font-family: var(--mono); cursor: pointer; }
+  .date-picker-input:focus { outline: none; border-color: var(--accent); }
+  .date-picker-apply { width: 100%; padding: 9px; background: var(--accent); border: none; border-radius: 6px; color: white; font-size: 13px; font-weight: 500; cursor: pointer; font-family: var(--font); margin-top: 4px; }
+  .date-picker-presets { display: grid; grid-template-columns: repeat(4,1fr); gap: 6px; margin-bottom: 12px; }
+  .date-picker-preset { padding: 6px 4px; background: var(--bg3); border: 1px solid var(--border); border-radius: 6px; color: #bbb; font-size: 11px; cursor: pointer; font-family: var(--font); text-align: center; }
+  .date-picker-preset:hover, .date-picker-preset.active { border-color: var(--accent); color: var(--accent); background: rgba(79,142,247,0.08); }
+  .date-picker-overlay { display: none; position: fixed; inset: 0; z-index: 199; }
+  .date-picker-overlay.open { display: block; }
+
+  @media (max-width: 768px) {
+    .sidebar { display: none; }
+    .mobile-tabs { display: block; }
+    .main { padding: 1rem 0.75rem 2rem; }
+    .metrics-grid { grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px; }
+    .metrics-grid-3 { grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px; }
+    .metrics-grid-2 { grid-template-columns: 1fr; gap: 8px; }
+    .charts-grid, .cat-grid, .channel-grid { grid-template-columns: 1fr; gap: 8px; }
+    .funnel-wrap { flex-direction: column; gap: 4px; }
+    .funnel-step:not(:last-child)::after { display: none; }
+    .page-header { flex-direction: column; gap: 0.75rem; }
+    .header-actions { flex-wrap: wrap; gap: 6px; width: 100%; }
+    .date-tabs { flex-wrap: wrap; }
+    .date-custom { flex-wrap: wrap; }
+    .date-custom input { width: 110px; font-size: 13px; }
+    .metric-card { padding: 0.875rem; }
+    .metric-value { font-size: 20px; }
+    .metric-value.sm { font-size: 16px; }
+    .metric-label { font-size: 10px; }
+    .metric-desc { font-size: 11px; }
+    .page-title { font-size: 18px; }
+    .cat-metrics { grid-template-columns: 1fr 1fr; }
+    .cat-metric-val { font-size: 16px; }
+    .channel-grid { grid-template-columns: 1fr; }
+    .hbar-label { width: 80px; font-size: 11px; }
+    .hbar-val { font-size: 11px; width: 55px; }
+    .tbl { font-size: 11px; }
+    .tbl th { font-size: 10px; padding: 0 0 8px; }
+    .tbl td { padding: 7px 0; font-size: 11px; }
+    .chart-card { padding: 1rem; }
+    .chart-title { font-size: 11px; }
+    .chart-desc { font-size: 11px; }
+    .section-divider { font-size: 9px; }
+    .insight-box { font-size: 12px; padding: 0.75rem 1rem; }
+    .funnel-step { padding: 0.875rem 0.5rem; }
+    .funnel-step-num { font-size: 18px; }
+    .cat-card { padding: 1rem; }
+    .channel-card { padding: 1rem; }
+    .ch-val { font-size: 14px; }
+    .btn-csv { padding: 6px 10px; font-size: 11px; }
+    .date-tab { padding: 4px 10px; font-size: 11px; }
+    /* 행동분석 차트 높이 조정 */
+    #hourly-chart, #daily-chart { height: 200px !important; }
+    #hourly-txn-chart, #daily-txn-chart { height: 160px !important; }
+    /* 고객분석 큰 숫자 조정 */
+    #cu-cycle { font-size: 28px !important; }
+    #cu-new-cvr, #cu-return-cvr { font-size: 26px !important; }
+  }
+
+  @media (max-width: 360px) {
+    .metrics-grid, .metrics-grid-3 { grid-template-columns: 1fr; }
+    .metric-value { font-size: 18px; }
+  }
+
+  @media (max-width: 900px) and (min-width: 769px) {
+    .sidebar { display: none; }
+    .metrics-grid, .metrics-grid-3 { grid-template-columns: repeat(2,1fr); }
+    .charts-grid, .cat-grid, .channel-grid { grid-template-columns: 1fr; }
+    .funnel-wrap { flex-direction: column; gap: 4px; }
+    .funnel-step:not(:last-child)::after { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- 모바일 상단 탭바 -->
+<nav class="mobile-tabs" id="mobile-tabs-nav">
+  <div class="mobile-tabs-wrap">
+    <div class="mobile-tabs-inner" id="mobile-tabs-inner">
+      <button class="mobile-tab active" onclick="switchViewMobile('overview',this)"><span class="mobile-tab-dot"></span>개요</button>
+      <button class="mobile-tab" onclick="switchViewMobile('healthcare',this)"><span class="mobile-tab-dot" style="background:#a78bfa;"></span>헬스케어</button>
+      <button class="mobile-tab" onclick="switchViewMobile('medical',this)"><span class="mobile-tab-dot" style="background:#34d399;"></span>메디컬</button>
+      <button class="mobile-tab" onclick="switchViewMobile('influencer',this)"><span class="mobile-tab-dot" style="background:#f472b6;"></span>공구</button>
+      <button class="mobile-tab" onclick="switchViewMobile('channel',this)"><span class="mobile-tab-dot" style="background:#f59e0b;"></span>채널</button>
+      <button class="mobile-tab" onclick="switchViewMobile('funnel',this)"><span class="mobile-tab-dot" style="background:#2ecc8a;"></span>퍼널</button>
+      <button class="mobile-tab" onclick="switchViewMobile('member',this)"><span class="mobile-tab-dot" style="background:#4f8ef7;"></span>회원가입</button>
+      <button class="mobile-tab" onclick="switchViewMobile('behavior',this)"><span class="mobile-tab-dot" style="background:#818cf8;"></span>행동</button>
+      <button class="mobile-tab" onclick="switchViewMobile('customer',this)"><span class="mobile-tab-dot" style="background:#fb923c;"></span>고객</button>
+    </div>
+    <div class="scroll-hint" id="scroll-hint">›</div>
+  </div>
+</nav>
+
+<!-- 날짜 선택 오버레이 -->
+<div class="date-picker-overlay" id="date-picker-overlay" onclick="closeDatePicker()"></div>
+
+<div class="app">
+  <aside class="sidebar">
+    <div class="logo">GA4 <span>Analytics</span></div>
+    <nav class="nav">
+      <div class="nav-label">전체</div>
+      <button class="nav-item active" onclick="switchView('overview',this)"><span class="nav-dot"></span> 개요</button>
+      <div class="nav-label">카테고리</div>
+      <button class="nav-item" onclick="switchView('healthcare',this)"><span class="nav-dot dot-hc"></span> 헬스케어</button>
+      <button class="nav-item" onclick="switchView('medical',this)"><span class="nav-dot dot-md"></span> 메디컬</button>
+      <button class="nav-item" onclick="switchView('influencer',this)"><span class="nav-dot dot-inf"></span> 인플루언서 공구</button>
+      <div class="nav-label">분석</div>
+      <button class="nav-item" onclick="switchView('channel',this)"><span class="nav-dot dot-ch"></span> 채널별 분석</button>
+      <button class="nav-item" onclick="switchView('funnel',this)"><span class="nav-dot dot-pay"></span> 구매 퍼널</button>
+      <button class="nav-item" onclick="switchView('member',this)"><span class="nav-dot dot-mem"></span> 회원가입 분석</button>
+      <button class="nav-item" onclick="switchView('behavior',this)"><span class="nav-dot" style="background:#818cf8!important;"></span> 행동 분석</button>
+      <button class="nav-item" onclick="switchView('customer',this)"><span class="nav-dot" style="background:#fb923c!important;"></span> 고객 분석</button>
+    </nav>
+    <div style="margin-top:auto;font-size:11px;color:var(--text3);font-family:var(--mono);line-height:1.8;">Property<br><span style="color:var(--text2);">462685759</span></div>
+  </aside>
+
+  <main class="main">
+    <div class="page-header">
+      <div>
+        <div class="page-title" id="page-title">개요</div>
+        <div class="page-sub" id="date-label">최근 7일</div>
+      </div>
+      <div class="header-actions" id="date-actions" style="display:none;">
+        <div class="date-tabs">
+          <button class="date-tab active" onclick="setPreset('7daysAgo','today','최근 7일',this)">7일</button>
+          <button class="date-tab" onclick="setPreset('14daysAgo','today','최근 14일',this)">14일</button>
+          <button class="date-tab" onclick="setPreset('30daysAgo','today','최근 30일',this)">30일</button>
+          <button class="date-tab" onclick="setPreset('90daysAgo','today','최근 90일',this)">90일</button>
+        </div>
+        <!-- 캘린더 날짜 선택 -->
+        <div style="position:relative;">
+          <button class="date-picker-btn" id="date-picker-btn" onclick="toggleDatePicker()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            <span id="date-picker-label">날짜 선택</span>
+          </button>
+          <div class="date-picker-popup" id="date-picker-popup">
+            <div class="date-picker-presets">
+              <button class="date-picker-preset active" onclick="setPresetDP('7daysAgo','today','최근 7일',this)">7일</button>
+              <button class="date-picker-preset" onclick="setPresetDP('14daysAgo','today','최근 14일',this)">14일</button>
+              <button class="date-picker-preset" onclick="setPresetDP('30daysAgo','today','최근 30일',this)">30일</button>
+              <button class="date-picker-preset" onclick="setPresetDP('90daysAgo','today','최근 90일',this)">90일</button>
+            </div>
+            <div class="date-picker-row">
+              <div>
+                <div class="date-picker-label">시작일</div>
+                <input type="date" class="date-picker-input" id="dp-start">
+              </div>
+              <div>
+                <div class="date-picker-label">종료일</div>
+                <input type="date" class="date-picker-input" id="dp-end">
+              </div>
+            </div>
+            <button class="date-picker-apply" onclick="applyDatePicker()">적용</button>
+          </div>
+        </div>
+        <button class="btn-csv" onclick="downloadCSV()">↓ CSV</button>
+      </div>
+    </div>
+
+    <!-- 로그인 -->
+    <div id="login-view">
+      <div class="login-card">
+        <div class="login-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+            <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+            <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+            <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+            <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+          </svg>
+        </div>
+        <h3>Google Analytics 연동</h3>
+        <p>Google 계정으로 로그인하면<br>신뢰할 수 있는 데이터만 모아<br>한눈에 볼 수 있어요.</p>
+        <button class="btn-google" id="login-btn" disabled onclick="handleLogin()">
+          <svg width="18" height="18" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+          Google 계정으로 로그인
+        </button>
+        <div class="status-msg" id="status-msg">라이브러리 로딩 중...</div>
+        <div id="error-msg"></div>
+      </div>
+    </div>
+
+    <!-- 대시보드 -->
+    <div id="dashboard-view">
+
+      <!-- 개요 -->
+      <div id="view-overview">
+        <div class="metrics-grid">
+          <div class="metric-card"><div class="metric-label">총 방문자</div><div class="metric-value" id="ov-users">—</div><div class="metric-desc">우리 사이트에 방문한 사람 수</div></div>
+          <div class="metric-card"><div class="metric-label">평균 체류시간</div><div class="metric-value green" id="ov-duration">—</div><div class="metric-desc">한 번 방문에 머문 평균 시간</div></div>
+          <div class="metric-card highlight"><div class="metric-label">총 매출</div><div class="metric-value amber sm" id="ov-revenue">—</div><div class="metric-desc">실제 구매로 발생한 전체 매출</div></div>
+          <div class="metric-card"><div class="metric-label">구매 전환율</div><div class="metric-value green" id="ov-cvr">—</div><div class="metric-desc">방문자 100명 중 구매한 사람</div></div>
+        </div>
+        <div class="metrics-grid-2" style="margin-bottom:1.5rem;">
+          <div class="metric-card">
+            <div class="metric-label" style="color:var(--influencer);">공동구매 매출 <span style="font-size:9px;color:#777;">(참고용)</span></div>
+            <div class="metric-value pink sm" id="ov-gongu-rev">—</div>
+            <div class="metric-desc">인플루언서 공구 채널에서 발생한 매출이에요.</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label" style="color:var(--accent);">자사몰/광고 매출 <span style="font-size:9px;color:#777;">(참고용)</span></div>
+            <div class="metric-value blue sm" id="ov-own-rev">—</div>
+            <div class="metric-desc">공구 외 자사몰 및 광고 채널에서 발생한 매출이에요.</div>
+          </div>
+        </div>
+
+        <div class="chart-card" style="margin-bottom:1.5rem;">
+          <div class="chart-title">신규 방문자 vs 재방문자</div>
+          <div class="chart-desc">처음 온 사람과 다시 돌아온 사람의 비율이에요. 재방문자가 많을수록 충성 고객이 많다는 뜻이에요.</div>
+          <div id="new-return-bar"></div>
+        </div>
+
+        <div class="section-divider">카테고리 한눈에 보기</div>
+        <div class="cat-grid" id="cat-summary"></div>
+
+        <div class="charts-grid">
+          <div class="chart-card">
+            <div class="chart-title"><span class="live-dot"></span> 가장 많이 본 상품</div>
+            <div class="chart-desc">방문자가 가장 많이 들어온 상품 페이지예요.</div>
+            <div id="top-products" style="margin-top:0.5rem;"></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">어디서 왔나요?</div>
+            <div class="chart-desc">방문자가 어떤 경로로 들어왔는지예요.</div>
+            <div id="top-channels" style="margin-top:0.5rem;"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 헬스케어 -->
+      <div id="view-healthcare" style="display:none;">
+        <div class="metrics-grid-3">
+          <div class="metric-card"><div class="metric-label" style="color:var(--healthcare);">총 방문자</div><div class="metric-value" id="hc-users">—</div><div class="metric-desc">헬스케어 상품 페이지 방문자</div></div>
+          <div class="metric-card"><div class="metric-label" style="color:var(--healthcare);">평균 체류시간</div><div class="metric-value green" id="hc-duration">—</div><div class="metric-desc">페이지에 머문 평균 시간</div></div>
+          <div class="metric-card"><div class="metric-label" style="color:var(--healthcare);">참여율</div><div class="metric-value blue" id="hc-engage">—</div><div class="metric-desc">실제로 페이지에서 행동한 비율</div></div>
+        </div>
+        <div class="chart-card" style="margin-bottom:1.5rem;">
+          <div class="chart-title">헬스케어 상품별 방문자</div>
+          <div class="chart-desc">막대가 길수록 방문자가 많은 상품이에요.</div>
+          <div id="hc-chart" style="margin-top:1rem;"></div>
+        </div>
+        <div class="full-table-card">
+          <div class="chart-title">헬스케어 상품 상세표</div>
+          <div class="chart-desc" style="margin-bottom:1rem;">컬럼 이름을 클릭하면 정렬할 수 있어요.</div>
+          <div id="hc-table"></div>
+        </div>
+      </div>
+
+      <!-- 메디컬 -->
+      <div id="view-medical" style="display:none;">
+        <div class="metrics-grid-3">
+          <div class="metric-card"><div class="metric-label" style="color:var(--medical);">총 방문자</div><div class="metric-value" id="md-users">—</div><div class="metric-desc">메디컬 상품 페이지 방문자</div></div>
+          <div class="metric-card"><div class="metric-label" style="color:var(--medical);">평균 체류시간</div><div class="metric-value green" id="md-duration">—</div><div class="metric-desc">페이지에 머문 평균 시간</div></div>
+          <div class="metric-card"><div class="metric-label" style="color:var(--medical);">참여율</div><div class="metric-value blue" id="md-engage">—</div><div class="metric-desc">실제로 페이지에서 행동한 비율</div></div>
+        </div>
+        <div class="chart-card" style="margin-bottom:1.5rem;">
+          <div class="chart-title">메디컬 상품별 방문자</div>
+          <div class="chart-desc">막대가 길수록 방문자가 많은 상품이에요.</div>
+          <div id="md-chart" style="margin-top:1rem;"></div>
+        </div>
+        <div class="full-table-card">
+          <div class="chart-title">메디컬 상품 상세표</div>
+          <div class="chart-desc" style="margin-bottom:1rem;">컬럼 이름을 클릭하면 정렬할 수 있어요.</div>
+          <div id="md-table"></div>
+        </div>
+      </div>
+
+      <!-- 인플루언서 -->
+      <div id="view-influencer" style="display:none;">
+        <div class="metrics-grid-3">
+          <div class="metric-card"><div class="metric-label" style="color:var(--influencer);">공구 총 방문자</div><div class="metric-value pink" id="inf-users">—</div><div class="metric-desc">인플루언서 공구 링크로 들어온 방문자</div></div>
+          <div class="metric-card"><div class="metric-label" style="color:var(--influencer);">평균 체류시간</div><div class="metric-value green" id="inf-duration">—</div><div class="metric-desc">공구 페이지에 머문 평균 시간</div></div>
+          <div class="metric-card"><div class="metric-label" style="color:var(--influencer);">평균 참여율</div><div class="metric-value blue" id="inf-engage">—</div><div class="metric-desc">공구 페이지에서 실제로 행동한 비율</div></div>
+        </div>
+        <div class="charts-grid">
+          <div class="chart-card">
+            <div class="chart-title">인플루언서별 방문자</div>
+            <div class="chart-desc">누가 가장 많은 방문자를 데려왔는지예요.</div>
+            <div id="inf-users-chart" style="margin-top:1rem;"></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">인플루언서별 체류시간</div>
+            <div class="chart-desc">오래 볼수록 관심이 높은 방문자예요.</div>
+            <div id="inf-duration-chart" style="margin-top:1rem;"></div>
+          </div>
+        </div>
+        <div class="full-table-card">
+          <div class="chart-title">인플루언서별 상세표</div>
+          <div class="chart-desc" style="margin-bottom:1rem;">컬럼 이름을 클릭하면 정렬할 수 있어요.</div>
+          <div id="inf-table"></div>
+        </div>
+      </div>
+
+      <!-- 채널 -->
+      <div id="view-channel" style="display:none;">
+        <div class="chart-card" style="margin-bottom:1.5rem;">
+          <div class="chart-title">채널별 방문자 비교</div>
+          <div class="chart-desc">어떤 채널에서 가장 많은 사람이 들어왔는지예요.</div>
+          <div id="channel-bar" style="margin-top:1rem;"></div>
+        </div>
+        <div class="channel-grid" id="channel-cards"></div>
+        <div class="full-table-card">
+          <div class="chart-title">채널별 상세표</div>
+          <div class="chart-desc" style="margin-bottom:1rem;">어떤 채널이 얼마나 오래, 얼마나 깊게 보는지 비교해요.</div>
+          <div id="channel-table"></div>
+        </div>
+      </div>
+
+      <!-- 퍼널 -->
+      <div id="view-funnel" style="display:none;">
+        <div class="insight-box" id="funnel-insight"></div>
+        <div class="chart-card" style="margin-bottom:1.5rem;">
+          <div class="chart-title">구매 여정 퍼널</div>
+          <div class="chart-desc">사람들이 어떤 단계를 거쳐 구매까지 가는지 보여줘요. 숫자가 많이 줄어드는 단계가 개선이 필요한 곳이에요.</div>
+          <div id="funnel-steps" style="margin-top:1.5rem;"></div>
+        </div>
+        <div class="metrics-grid">
+          <div class="metric-card"><div class="metric-label">상품 조회</div><div class="metric-value" id="f-view">—</div><div class="metric-desc">상품 페이지를 클릭한 횟수</div></div>
+          <div class="metric-card"><div class="metric-label">장바구니 담기</div><div class="metric-value blue" id="f-cart">—</div><div class="metric-desc">장바구니에 넣은 횟수</div></div>
+          <div class="metric-card"><div class="metric-label">결제 시작</div><div class="metric-value amber" id="f-checkout">—</div><div class="metric-desc">결제 페이지까지 간 횟수</div></div>
+          <div class="metric-card highlight"><div class="metric-label">구매 완료</div><div class="metric-value green" id="f-purchase">—</div><div class="metric-desc">실제로 구매 완료한 횟수</div></div>
+        </div>
+        <div class="cat-grid">
+          <div class="cat-card">
+            <div class="cat-header"><span class="cat-badge badge-hc">헬스케어 추정</span></div>
+            <div class="cat-metrics">
+              <div><div class="cat-metric-label">방문자</div><div class="cat-metric-val val-hc" id="f-hc-users">—</div></div>
+              <div><div class="cat-metric-label">전환율</div><div class="cat-metric-val amber" id="f-hc-cvr">—</div></div>
+            </div>
+          </div>
+          <div class="cat-card">
+            <div class="cat-header"><span class="cat-badge badge-md">메디컬 추정</span></div>
+            <div class="cat-metrics">
+              <div><div class="cat-metric-label">방문자</div><div class="cat-metric-val val-md" id="f-md-users">—</div></div>
+              <div><div class="cat-metric-label">전환율</div><div class="cat-metric-val amber" id="f-md-cvr">—</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 회원가입 -->
+      <div id="view-member" style="display:none;">
+        <div class="insight-box" id="member-insight"></div>
+        <div class="metrics-grid">
+          <div class="metric-card"><div class="metric-label">전체 방문자</div><div class="metric-value" id="mem-new">—</div><div class="metric-desc">이 기간 전체 방문자 수</div></div>
+          <div class="metric-card highlight"><div class="metric-label">회원가입 수</div><div class="metric-value blue" id="mem-signup">—</div><div class="metric-desc">이 기간에 가입한 사람 수</div></div>
+          <div class="metric-card highlight"><div class="metric-label">가입 전환율</div><div class="metric-value green" id="mem-cvr">—</div><div class="metric-desc">전체 방문자 100명 중 가입한 사람</div></div>
+          <div class="metric-card"><div class="metric-label">전체 방문자 대비</div><div class="metric-value purple" id="mem-total-cvr">—</div><div class="metric-desc">전체 방문자 중 가입한 비율</div></div>
+        </div>
+
+        <div class="chart-card" style="margin-bottom:1.5rem;">
+          <div class="chart-title">신규 방문자 → 회원가입 전환율</div>
+          <div class="chart-desc">전체 방문자 100명이 왔을 때 몇 명이 회원가입까지 하는지 보여줘요. 수치가 높을수록 사이트가 매력적이라는 뜻이에요.</div>
+          <div class="signup-gauge">
+            <div class="gauge-track"><div class="gauge-fill" id="signup-gauge-fill" style="width:0%"></div></div>
+            <div class="gauge-labels">
+              <span>0%</span>
+              <span id="signup-gauge-val" style="color:var(--accent);font-weight:500;">0%</span>
+              <span>100%</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="charts-grid">
+          <div class="chart-card">
+            <div class="chart-title">채널별 회원가입</div>
+            <div class="chart-desc">어떤 채널을 통해 들어온 사람이 가장 많이 가입하는지예요.</div>
+            <div id="signup-channel-chart" style="margin-top:1rem;"></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">신규 vs 재방문 가입 비율</div>
+            <div class="chart-desc">회원가입한 사람 중 신규와 재방문자 비율이에요.</div>
+            <div id="signup-new-return" style="margin-top:1rem;"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 행동 분석 -->
+      <div id="view-behavior" style="display:none;">
+        <!-- 탭 전환 -->
+        <div style="display:flex;gap:4px;margin-bottom:1.5rem;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:4px;width:fit-content;">
+          <button id="btab-hourly" onclick="switchBehaviorTab('hourly')" style="padding:6px 18px;border-radius:5px;font-size:13px;font-weight:500;border:none;cursor:pointer;background:var(--bg3);color:var(--text);border:1px solid var(--border2);font-family:var(--font);">시간대별</button>
+          <button id="btab-daily" onclick="switchBehaviorTab('daily')" style="padding:6px 18px;border-radius:5px;font-size:13px;font-weight:500;border:none;cursor:pointer;background:none;color:#bbb;font-family:var(--font);">요일별</button>
+        </div>
+
+        <!-- 시간대별 -->
+        <div id="bview-hourly">
+          <div class="metrics-grid" style="margin-bottom:1.5rem;">
+            <div class="metric-card"><div class="metric-label">피크 시간</div><div class="metric-value" id="bh-peak-hour">—</div><div class="metric-desc">방문자가 가장 많은 시간</div></div>
+            <div class="metric-card"><div class="metric-label">피크 매출 시간</div><div class="metric-value amber" id="bh-peak-rev-hour">—</div><div class="metric-desc">매출이 가장 많이 나는 시간</div></div>
+            <div class="metric-card"><div class="metric-label">피크 구매건수</div><div class="metric-value green" id="bh-peak-txn">—</div><div class="metric-desc">해당 시간대 구매 건수</div></div>
+            <div class="metric-card"><div class="metric-label">비활성 시간대</div><div class="metric-value" id="bh-low-hour">—</div><div class="metric-desc">방문자가 가장 적은 시간</div></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">시간대별 방문자 & 매출</div>
+            <div class="chart-desc">막대는 방문자 수, 선은 매출이에요. 광고 집행 시간대를 최적화할 때 활용할 수 있어요.</div>
+            <div style="position:relative;width:100%;height:280px;margin-top:1rem;"><canvas id="hourly-chart"></canvas></div>
+          </div>
+          <div class="chart-card" style="margin-top:12px;">
+            <div class="chart-title">시간대별 구매 건수</div>
+            <div class="chart-desc">시간대별로 실제 구매가 몇 건 발생했는지예요.</div>
+            <div style="position:relative;width:100%;height:200px;margin-top:1rem;"><canvas id="hourly-txn-chart"></canvas></div>
+          </div>
+        </div>
+
+        <!-- 요일별 -->
+        <div id="bview-daily" style="display:none;">
+          <div class="metrics-grid" style="margin-bottom:1.5rem;">
+            <div class="metric-card"><div class="metric-label">최고 매출 요일</div><div class="metric-value amber" id="bd-peak-day">—</div><div class="metric-desc">일주일 중 매출이 가장 높은 날</div></div>
+            <div class="metric-card"><div class="metric-label">최저 매출 요일</div><div class="metric-value" id="bd-low-day">—</div><div class="metric-desc">일주일 중 매출이 가장 낮은 날</div></div>
+            <div class="metric-card"><div class="metric-label">최고 방문 요일</div><div class="metric-value green" id="bd-peak-users">—</div><div class="metric-desc">방문자가 가장 많은 요일</div></div>
+            <div class="metric-card"><div class="metric-label">주말 vs 평일 매출</div><div class="metric-value" id="bd-weekend-ratio">—</div><div class="metric-desc">평일 대비 주말 매출 비율</div></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">요일별 방문자 & 매출</div>
+            <div class="chart-desc">막대는 방문자 수, 선은 매출이에요. 요일별 패턴을 파악해 프로모션 시기를 잡을 수 있어요.</div>
+            <div style="position:relative;width:100%;height:280px;margin-top:1rem;"><canvas id="daily-chart"></canvas></div>
+          </div>
+          <div class="chart-card" style="margin-top:12px;">
+            <div class="chart-title">요일별 구매 건수</div>
+            <div class="chart-desc">요일별로 실제 구매가 몇 건 발생했는지예요.</div>
+            <div style="position:relative;width:100%;height:200px;margin-top:1rem;"><canvas id="daily-txn-chart"></canvas></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 고객 분석 -->
+      <div id="view-customer" style="display:none;">
+        <div class="metrics-grid" style="margin-bottom:1.5rem;">
+          <div class="metric-card highlight">
+            <div class="metric-label" style="color:#fb923c;">재구매자 비율</div>
+            <div class="metric-value" style="color:#fb923c;" id="cu-repurchase-rate">—</div>
+            <div class="metric-desc">전체 구매자 중 재방문 후 구매한 비율</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">신규 구매자</div>
+            <div class="metric-value blue" id="cu-new-buyers">—</div>
+            <div class="metric-desc">처음 방문해서 구매한 사람</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">재구매자</div>
+            <div class="metric-value green" id="cu-return-buyers">—</div>
+            <div class="metric-desc">재방문 후 구매한 사람</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">LTV (사용자당 매출)</div>
+            <div class="metric-value amber" id="cu-ltv">—</div>
+            <div class="metric-desc">방문자 1인당 평균 발생 매출</div>
+          </div>
+        </div>
+
+        <div class="charts-grid" style="margin-bottom:1.5rem;">
+          <div class="chart-card">
+            <div class="chart-title">신규 vs 재구매자 비율</div>
+            <div class="chart-desc">전체 구매자 중 처음 산 사람과 다시 산 사람의 비율이에요. 재구매자가 많을수록 충성 고객이 많다는 뜻이에요.</div>
+            <div id="cu-ratio-bar" style="margin-top:1rem;"></div>
+          </div>
+          <div class="chart-card">
+            <div class="metric-label" style="margin-bottom:1rem;">1인당 평균 구매횟수</div>
+            <div style="font-size:36px;font-weight:500;font-family:var(--mono);color:#fb923c;" id="cu-cycle">—</div>
+            <div style="font-size:12px;color:#999;margin-top:6px;" id="cu-cycle-desc">—</div>
+            <div style="margin-top:1.5rem;padding-top:1rem;border-top:1px solid var(--border);">
+              <div style="font-size:11px;color:#aaa;margin-bottom:8px;">계산 방식</div>
+              <div style="font-size:12px;color:#bbb;line-height:1.7;" id="cu-cycle-formula">—</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="charts-grid">
+          <div class="chart-card">
+            <div class="chart-title">신규 방문자 구매 전환율</div>
+            <div class="chart-desc">처음 온 방문자 100명 중 몇 명이 구매했는지예요.</div>
+            <div style="margin-top:1rem;">
+              <div style="font-size:32px;font-weight:500;font-family:var(--mono);color:var(--accent);" id="cu-new-cvr">—</div>
+              <div style="font-size:12px;color:#999;margin-top:4px;" id="cu-new-cvr-desc">—</div>
+              <div style="height:8px;background:var(--bg3);border-radius:4px;overflow:hidden;margin-top:12px;">
+                <div id="cu-new-cvr-bar" style="height:100%;border-radius:4px;background:var(--accent);transition:width 0.6s;"></div>
+              </div>
+            </div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">재방문자 구매 전환율</div>
+            <div class="chart-desc">다시 방문한 사람 100명 중 몇 명이 구매했는지예요. 신규보다 높을수록 좋아요.</div>
+            <div style="margin-top:1rem;">
+              <div style="font-size:32px;font-weight:500;font-family:var(--mono);color:var(--accent2);" id="cu-return-cvr">—</div>
+              <div style="font-size:12px;color:#999;margin-top:4px;" id="cu-return-cvr-desc">—</div>
+              <div style="height:8px;background:var(--bg3);border-radius:4px;overflow:hidden;margin-top:12px;">
+                <div id="cu-return-cvr-bar" style="height:100%;border-radius:4px;background:var(--accent2);transition:width 0.6s;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<script>
+const CLIENT_ID = '381500446502-tcjcoljhjujhqklb99qc20ghnlc22f4p.apps.googleusercontent.com';
+const PROPERTY_ID = '462685759';
+const SCOPES = 'https://www.googleapis.com/auth/analytics.readonly';
+
+const HEALTHCARE_KEYS = ['burningon','cheatingon','bellylight','burningcheating','cheatingbellylight','dailyplantprotein','plantprotein','cb_secret','cbsecret'];
+const MEDICAL_KEYS = ['diet','moomoojelly','yeolicha','slimeffector','detox','dietkit','starterpack','slimeffectorkit','moomoojellykit','burningonkit','detoxkit','bellylightkit','cheatingonkit','dietset1week','luckybox','vivagynomd'];
+
+const CHANNEL_MAP = {
+  instagram: { label:'인스타그램', color:'#e1306c' },
+  naver: { label:'네이버', color:'#03c75a' },
+  kakao: { label:'카카오', color:'#b8a000' },
+  facebook: { label:'페이스북', color:'#1877f2' },
+  direct: { label:'직접 유입', color:'#888' },
+  google: { label:'구글', color:'#4285F4' },
+  referral: { label:'외부 링크', color:'#a78bfa' },
+  other: { label:'기타', color:'#555' }
+};
+const CHANNEL_SUB_MAP = {
+  ig_feed:{label:'피드 광고',parent:'instagram',color:'#e1306c'},
+  ig_stories:{label:'스토리 광고',parent:'instagram',color:'#c13584'},
+  ig_reels:{label:'릴스 광고',parent:'instagram',color:'#833ab4'},
+  ig_social:{label:'자연 유입',parent:'instagram',color:'#f56040'},
+  ig_referral:{label:'링크 클릭',parent:'instagram',color:'#fd1d1d'},
+  naver_brand:{label:'브랜드검색/성과형',parent:'naver',color:'#03c75a'},
+  naver_sa:{label:'검색광고',parent:'naver',color:'#00b44c'},
+  naver_search:{label:'모바일 검색',parent:'naver',color:'#009940'},
+  naver_shopping:{label:'쇼핑',parent:'naver',color:'#007030'},
+  naver_blog:{label:'블로그',parent:'naver',color:'#005a26'},
+  naver_organic:{label:'자연유입',parent:'naver',color:'#004d1f'},
+  naver_other:{label:'기타',parent:'naver',color:'#003d18'},
+  kakao_profile:{label:'프로필',parent:'kakao',color:'#b8a000'},
+  kakao_other:{label:'기타',parent:'kakao',color:'#8a7800'},
+  fb_ad:{label:'광고',parent:'facebook',color:'#1877f2'},
+  fb_organic:{label:'자연',parent:'facebook',color:'#0a5dc2'},
+  direct:{label:'직접 유입',parent:'direct',color:'#888'},
+  google:{label:'구글',parent:'google',color:'#4285F4'},
+  referral:{label:'외부 링크',parent:'referral',color:'#a78bfa'},
+  other:{label:'기타',parent:'other',color:'#555'}
+};
+
+function classifyChannel(src, med) {
+  const s=(src||'').toLowerCase(), m=(med||'').toLowerCase();
+  if(m==='gongu'||s.startsWith('@')) return null;
+  // 결제 리다이렉트 제외
+  if(s.includes('orders.pay.naver')||s.includes('admin.pay.naver')||s.includes('mrc-pay')) return null;
+  if(s.includes('naver')||s==='napm') return 'naver';
+  if(s.includes('instagram')||s==='ig') return 'instagram';
+  if(s.includes('facebook')||s==='fb') return 'facebook';
+  if(s.includes('kakao')) return 'kakao';
+  if(s==='(direct)'||m==='(none)') return 'direct';
+  if(s.includes('google')) return 'google';
+  if(m==='referral') return 'referral';
+  return 'other';
+}
+
+function classifySubChannel(src, med) {
+  const s=(src||'').toLowerCase(), m=(med||'').toLowerCase();
+  if(m==='gongu'||s.startsWith('@')) return null;
+  if(s.includes('orders.pay.naver')||s.includes('admin.pay.naver')||s.includes('mrc-pay')) return null;
+
+  // 인스타그램
+  if(s==='ig'||s.includes('instagram')) {
+    const ml=m.toLowerCase();
+    if(ml.includes('instagram_feed')||ml.includes('_feed')) return 'ig_feed';
+    if(ml.includes('instagram_stories')||ml.includes('_stories')) return 'ig_stories';
+    if(ml.includes('instagram_reels')||ml.includes('_reels')) return 'ig_reels';
+    if(ml==='social') return 'ig_social';
+    return 'ig_referral';
+  }
+
+  // 네이버 세분류
+  if(s==='napm') return 'naver_brand'; // 성과형/브랜드검색
+  if(s.includes('naver')) {
+    if(m==='sa') return 'naver_sa'; // 검색광고
+    if(m==='cpc') return 'naver_sa'; // 검색광고
+    if(s==='m.search.naver.com'||s==='search.naver.com') return 'naver_search'; // 모바일/PC 검색
+    if(s.includes('shopping.naver')) return 'naver_shopping'; // 쇼핑
+    if(s.includes('blog.naver')) return 'naver_blog'; // 블로그
+    if(m==='organic') return 'naver_organic'; // 자연유입
+    if(m==='referral') return 'naver_other'; // 기타 referral
+    return 'naver_other';
+  }
+
+  // 카카오
+  if(s.includes('kakao')) return m==='profile'?'kakao_profile':'kakao_other';
+  // 페이스북
+  if(s.includes('facebook')||s==='fb') return (m==='cpc'||m.includes('facebook_'))?'fb_ad':'fb_organic';
+  if(s==='(direct)'||m==='(none)') return 'direct';
+  if(s.includes('google')) return 'google';
+  if(m==='referral') return 'referral';
+  return 'other';
+}
+
+function extractProductName(path) {
+  const m=path.match(/\/kr\/products\/\d+\/([^/?#]+)/);
+  return m?m[1]:null;
+}
+function getCleanName(raw) { return raw.includes('@')?raw.split('@')[0]:raw; }
+function getInfluencer(raw) { return raw.includes('@')?raw.split('@')[1]:null; }
+function classifyProduct(name) {
+  const l=name.toLowerCase();
+  for(const k of HEALTHCARE_KEYS){if(l.includes(k))return 'healthcare';}
+  for(const k of MEDICAL_KEYS){if(l.includes(k))return 'medical';}
+  return 'other';
+}
+
+let tokenClient, accessToken;
+let startDate='7daysAgo', endDate='today';
+let state={products:[],influencers:[],channels:[],funnel:{},overview:{},signup:{}};
+const sortState={};
+
+// 날짜 초기화
+function initDates() {
+  const today=new Date();
+  const week=new Date(today); week.setDate(today.getDate()-7);
+  const todayStr=today.toISOString().slice(0,10);
+  const weekStr=week.toISOString().slice(0,10);
+  const dpStart=document.getElementById('dp-start');
+  const dpEnd=document.getElementById('dp-end');
+  if(dpStart) dpStart.value=weekStr;
+  if(dpEnd) dpEnd.value=todayStr;
+  // 구버전 input도 호환
+  const ds=document.getElementById('date-start');
+  const de=document.getElementById('date-end');
+  if(ds) ds.value=weekStr;
+  if(de) de.value=todayStr;
+}
+
+function setPreset(start, end, label, btn) {
+  startDate=start; endDate=end;
+  document.getElementById('date-label').textContent=label;
+  document.querySelectorAll('.date-tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  updateDatePickerLabel(label);
+  if(accessToken) fetchAll();
+}
+
+function applyCustomDate() {
+  const s=document.getElementById('date-start')?.value||document.getElementById('dp-start')?.value;
+  const e=document.getElementById('date-end')?.value||document.getElementById('dp-end')?.value;
+  if(!s||!e) return;
+  startDate=s; endDate=e;
+  document.getElementById('date-label').textContent=`${s} ~ ${e}`;
+  document.querySelectorAll('.date-tab').forEach(b=>b.classList.remove('active'));
+  if(accessToken) fetchAll();
+}
+
+// 캘린더 팝업
+function toggleDatePicker() {
+  const popup=document.getElementById('date-picker-popup');
+  const overlay=document.getElementById('date-picker-overlay');
+  if(!popup) return;
+  const isOpen=popup.classList.contains('open');
+  if(isOpen) { popup.classList.remove('open'); overlay.classList.remove('open'); }
+  else { popup.classList.add('open'); overlay.classList.add('open'); }
+}
+
+function closeDatePicker() {
+  const popup=document.getElementById('date-picker-popup');
+  const overlay=document.getElementById('date-picker-overlay');
+  if(popup) popup.classList.remove('open');
+  if(overlay) overlay.classList.remove('open');
+}
+
+function setPresetDP(start, end, label, btn) {
+  startDate=start; endDate=end;
+  document.querySelectorAll('.date-picker-preset').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  // 날짜 input 업데이트
+  const today=new Date();
+  const s=new Date(today);
+  if(start.includes('daysAgo')) { s.setDate(today.getDate()-parseInt(start)); }
+  const dpStart=document.getElementById('dp-start');
+  const dpEnd=document.getElementById('dp-end');
+  if(dpStart) dpStart.value=s.toISOString().slice(0,10);
+  if(dpEnd) dpEnd.value=today.toISOString().slice(0,10);
+  updateDatePickerLabel(label);
+  document.getElementById('date-label').textContent=label;
+  document.querySelectorAll('.date-tab').forEach(b=>b.classList.remove('active'));
+  closeDatePicker();
+  if(accessToken) fetchAll();
+}
+
+function applyDatePicker() {
+  const s=document.getElementById('dp-start')?.value;
+  const e=document.getElementById('dp-end')?.value;
+  if(!s||!e) return;
+  startDate=s; endDate=e;
+  const label=`${s} ~ ${e}`;
+  document.getElementById('date-label').textContent=label;
+  updateDatePickerLabel(label);
+  document.querySelectorAll('.date-tab').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.date-picker-preset').forEach(b=>b.classList.remove('active'));
+  closeDatePicker();
+  if(accessToken) fetchAll();
+}
+
+function updateDatePickerLabel(label) {
+  const btn=document.getElementById('date-picker-label');
+  if(btn) btn.textContent=label;
+}
+
+// 스크롤 힌트
+function initScrollHint() {
+  const inner=document.getElementById('mobile-tabs-inner');
+  const hint=document.getElementById('scroll-hint');
+  if(!inner||!hint) return;
+  function check() {
+    const atEnd=inner.scrollLeft+inner.clientWidth>=inner.scrollWidth-4;
+    hint.classList.toggle('hidden', atEnd);
+  }
+  inner.addEventListener('scroll', check);
+  check();
+}
+
+function onGsiLoaded() {
+  tokenClient=google.accounts.oauth2.initTokenClient({
+    client_id:CLIENT_ID, scope:SCOPES,
+    callback:resp=>{
+      if(resp.error){showError('로그인 실패: '+resp.error);return;}
+      accessToken=resp.access_token;
+      document.getElementById('login-view').style.display='none';
+      document.getElementById('dashboard-view').style.display='block';
+      document.getElementById('date-actions').style.display='flex';
+      fetchAll();
+    }
+  });
+  document.getElementById('login-btn').disabled=false;
+  document.getElementById('status-msg').textContent='준비완료. 로그인 버튼을 눌러주세요.';
+}
+
+function handleLogin(){tokenClient.requestAccessToken({prompt:'consent'});}
+function showError(msg){document.getElementById('error-msg').innerHTML=`<div class="error-box">${msg}</div>`;}
+
+function switchViewMobile(view, btn) {
+  document.querySelectorAll('.mobile-tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  // 사이드바 nav-item도 동기화
+  document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active'));
+  ['overview','healthcare','medical','influencer','channel','funnel','member','behavior','customer'].forEach(v=>{
+    document.getElementById('view-'+v).style.display=v===view?'block':'none';
+  });
+  const titles={overview:'개요',healthcare:'헬스케어',medical:'메디컬',influencer:'인플루언서 공구',channel:'채널별 분석',funnel:'구매 퍼널',member:'회원가입 분석',behavior:'행동 분석',customer:'고객 분석'};
+  document.getElementById('page-title').textContent=titles[view];
+  window.scrollTo(0,0);
+}
+
+function switchView(view, btn) {
+  document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  ['overview','healthcare','medical','influencer','channel','funnel','member','behavior','customer'].forEach(v=>{
+    document.getElementById('view-'+v).style.display=v===view?'block':'none';
+  });
+  const titles={overview:'개요',healthcare:'헬스케어',medical:'메디컬',influencer:'인플루언서 공구',channel:'채널별 분석',funnel:'구매 퍼널',member:'회원가입 분석',behavior:'행동 분석',customer:'고객 분석'};
+  document.getElementById('page-title').textContent=titles[view];
+}
+
+async function fetchGA(body) {
+  const res=await fetch(`https://analyticsdata.googleapis.com/v1beta/properties/${PROPERTY_ID}:runReport`,{
+    method:'POST',
+    headers:{'Authorization':`Bearer ${accessToken}`,'Content-Type':'application/json'},
+    body:JSON.stringify(body)
+  });
+  if(!res.ok){const e=await res.json();throw new Error(e.error?.message||'요청 실패');}
+  return res.json();
+}
+
+const fmtNum=n=>parseInt(n||0).toLocaleString('ko-KR');
+const fmtPct=n=>(parseFloat(n||0)*100).toFixed(1)+'%';
+const fmtTime=s=>{const sec=Math.round(parseFloat(s||0));const m=Math.floor(sec/60);return m>0?`${m}분 ${sec%60}초`:`${sec}초`;};
+const fmtMoney=n=>Math.round(parseFloat(n||0)).toLocaleString('ko-KR')+'원';
+const fmtMoneyShort=n=>{const v=Math.round(parseFloat(n||0));if(v>=100000000)return (v/100000000).toFixed(1)+'억';if(v>=10000)return Math.round(v/10000).toLocaleString()+'만';return v.toLocaleString()+'원';};
+
+async function fetchAll() {
+  try {
+    const dr=[{startDate, endDate}];
+    const [ov, newVsReturn, productPages, channelData, eventData, signupByChannel, channelRevenue, gonguRevenue, hourlyData, dailyData, customerData] = await Promise.all([
+      fetchGA({dateRanges:dr, metrics:[{name:'activeUsers'},{name:'sessions'},{name:'screenPageViewsPerSession'},{name:'averageSessionDuration'},{name:'totalRevenue'},{name:'transactions'}]}),
+      fetchGA({dateRanges:dr, dimensions:[{name:'newVsReturning'}], metrics:[{name:'activeUsers'},{name:'eventCount'}], dimensionFilter:{filter:{fieldName:'eventName',stringFilter:{matchType:'EXACT',value:'sign_up'}}}}),
+      fetchGA({dateRanges:dr, dimensions:[{name:'pagePath'}], metrics:[{name:'activeUsers'},{name:'averageSessionDuration'},{name:'engagementRate'},{name:'screenPageViews'}], dimensionFilter:{filter:{fieldName:'pagePath',stringFilter:{matchType:'CONTAINS',value:'/kr/products/'}}}, orderBys:[{metric:{metricName:'activeUsers'},desc:true}], limit:300}),
+      fetchGA({dateRanges:dr, dimensions:[{name:'sessionSource'},{name:'sessionMedium'}], metrics:[{name:'activeUsers'},{name:'averageSessionDuration'},{name:'engagementRate'},{name:'screenPageViewsPerSession'}], orderBys:[{metric:{metricName:'activeUsers'},desc:true}], limit:100}),
+      fetchGA({dateRanges:dr, dimensions:[{name:'eventName'}], metrics:[{name:'eventCount'},{name:'totalUsers'}], dimensionFilter:{filter:{fieldName:'eventName',inListFilter:{values:['view_item','add_to_cart','begin_checkout','purchase','sign_up','first_visit']}}}}),
+      fetchGA({dateRanges:dr, dimensions:[{name:'sessionSource'},{name:'sessionMedium'}], metrics:[{name:'eventCount'}], dimensionFilter:{filter:{fieldName:'eventName',stringFilter:{matchType:'EXACT',value:'sign_up'}}}, orderBys:[{metric:{metricName:'eventCount'},desc:true}], limit:20}),
+      fetchGA({dateRanges:dr, dimensions:[{name:'sessionSource'},{name:'sessionMedium'}], metrics:[{name:'totalRevenue'}], orderBys:[{metric:{metricName:'totalRevenue'},desc:true}], limit:100}),
+      fetchGA({dateRanges:dr, metrics:[{name:'totalRevenue'}], dimensionFilter:{filter:{fieldName:'sessionMedium',stringFilter:{matchType:'EXACT',value:'gongu'}}}}),
+      fetchGA({dateRanges:dr, dimensions:[{name:'hour'}], metrics:[{name:'activeUsers'},{name:'totalRevenue'},{name:'transactions'}], orderBys:[{dimension:{dimensionName:'hour'}}], limit:24}),
+      fetchGA({dateRanges:dr, dimensions:[{name:'dayOfWeek'}], metrics:[{name:'activeUsers'},{name:'totalRevenue'},{name:'transactions'}], orderBys:[{dimension:{dimensionName:'dayOfWeek'}}], limit:7}),
+      fetchGA({dateRanges:dr, dimensions:[{name:'newVsReturning'}], metrics:[{name:'activeUsers'},{name:'totalRevenue'},{name:'transactions'}]})
+    ]);
+
+    // 개요
+    const r=ov.rows?.[0]?.metricValues||[];
+    const gonguRev=parseFloat(gonguRevenue.rows?.[0]?.metricValues?.[0]?.value||0);
+    state.overview={
+      users:parseInt(r[0]?.value||0), sessions:parseInt(r[1]?.value||0),
+      ppv:parseFloat(r[2]?.value||0), duration:parseFloat(r[3]?.value||0),
+      revenue:parseFloat(r[4]?.value||0), transactions:parseInt(r[5]?.value||0),
+      gonguRevenue:gonguRev,
+      ownRevenue:parseFloat(r[4]?.value||0)-gonguRev
+    };
+
+    // 신규 vs 재방문
+    state.newVsReturn={new:0,returning:0};
+    (newVsReturn.rows||[]).forEach(row=>{
+      const key=row.dimensionValues[0].value.toLowerCase();
+      if(key.includes('new')) state.newVsReturn.new=parseInt(row.metricValues[0].value||0);
+      else state.newVsReturn.returning=parseInt(row.metricValues[0].value||0);
+    });
+
+    // 이벤트 데이터
+    const evtMap={};
+    (eventData.rows||[]).forEach(row=>{ evtMap[row.dimensionValues[0].value]={count:parseInt(row.metricValues[0].value||0),users:parseInt(row.metricValues[1].value||0)}; });
+    state.funnel={
+      viewItem:evtMap['view_item']?.count||0,
+      addCart:evtMap['add_to_cart']?.count||0,
+      beginCheckout:evtMap['begin_checkout']?.count||0,
+      purchase:evtMap['purchase']?.count||0,
+      purchaseUsers:evtMap['purchase']?.users||0,
+      firstVisit:evtMap['first_visit']?.count||0
+    };
+    state.signup={
+      total:evtMap['sign_up']?.count||0,
+      firstVisit:evtMap['first_visit']?.count||0,
+      newUsers:state.newVsReturn.new
+    };
+
+    // 상품 페이지
+    const productMap={}, influencerMap={};
+    (productPages.rows||[]).forEach(row=>{
+      const path=row.dimensionValues[0].value;
+      const rawName=extractProductName(path); if(!rawName) return;
+      const users=parseInt(row.metricValues[0].value||0);
+      const duration=parseFloat(row.metricValues[1].value||0);
+      const engage=parseFloat(row.metricValues[2].value||0);
+      const views=parseInt(row.metricValues[3].value||0);
+      const cleanName=getCleanName(rawName);
+      const influencer=getInfluencer(rawName);
+      const category=classifyProduct(cleanName);
+      if(influencer){
+        if(!influencerMap[influencer]) influencerMap[influencer]={influencer,users:0,duration:0,dC:0,engage:0,eC:0,products:new Set()};
+        influencerMap[influencer].users+=users; influencerMap[influencer].duration+=duration; influencerMap[influencer].dC++;
+        influencerMap[influencer].engage+=engage; influencerMap[influencer].eC++; influencerMap[influencer].products.add(cleanName);
+      } else {
+        if(!productMap[cleanName]) productMap[cleanName]={name:cleanName,category,users:0,duration:0,dC:0,engage:0,eC:0,views:0};
+        productMap[cleanName].users+=users; productMap[cleanName].duration+=duration; productMap[cleanName].dC++;
+        productMap[cleanName].engage+=engage; productMap[cleanName].eC++; productMap[cleanName].views+=views;
+      }
+    });
+    state.products=Object.values(productMap).map(p=>({...p,duration:p.dC?p.duration/p.dC:0,engage:p.eC?p.engage/p.eC:0})).filter(p=>p.category!=='other');
+    state.influencers=Object.values(influencerMap).map(p=>({...p,duration:p.dC?p.duration/p.dC:0,engage:p.eC?p.engage/p.eC:0,products:[...p.products].join(', ')}));
+
+    // 채널 대분류
+    const chMap={};
+    (channelData.rows||[]).forEach(row=>{
+      const src=row.dimensionValues[0].value, med=row.dimensionValues[1].value;
+      const ch=classifyChannel(src,med); if(!ch) return;
+      const users=parseInt(row.metricValues[0].value||0);
+      const dur=parseFloat(row.metricValues[1].value||0);
+      const eng=parseFloat(row.metricValues[2].value||0);
+      const ppv=parseFloat(row.metricValues[3].value||0);
+      if(!chMap[ch]) chMap[ch]={channel:ch,users:0,duration:0,dC:0,engage:0,eC:0,ppv:0,pC:0,revenue:0,subChannels:{}};
+      chMap[ch].users+=users; chMap[ch].duration+=dur; chMap[ch].dC++;
+      chMap[ch].engage+=eng; chMap[ch].eC++; chMap[ch].ppv+=ppv; chMap[ch].pC++;
+    });
+    // 채널 세분류
+    (channelData.rows||[]).forEach(row=>{
+      const src=row.dimensionValues[0].value, med=row.dimensionValues[1].value;
+      const ch=classifyChannel(src,med); if(!ch) return;
+      const sub=classifySubChannel(src,med); if(!sub) return;
+      const users=parseInt(row.metricValues[0].value||0);
+      const dur=parseFloat(row.metricValues[1].value||0);
+      const eng=parseFloat(row.metricValues[2].value||0);
+      if(!chMap[ch].subChannels[sub]) chMap[ch].subChannels[sub]={sub,users:0,duration:0,dC:0,engage:0,eC:0,revenue:0};
+      chMap[ch].subChannels[sub].users+=users;
+      chMap[ch].subChannels[sub].duration+=dur; chMap[ch].subChannels[sub].dC++;
+      chMap[ch].subChannels[sub].engage+=eng; chMap[ch].subChannels[sub].eC++;
+    });
+    // 채널별 매출
+    (channelRevenue.rows||[]).forEach(row=>{
+      const src=row.dimensionValues[0].value, med=row.dimensionValues[1].value;
+      const ch=classifyChannel(src,med); if(!ch) return;
+      const sub=classifySubChannel(src,med);
+      const rev=parseFloat(row.metricValues[0].value||0);
+      if(chMap[ch]) {
+        chMap[ch].revenue+=rev;
+        if(sub&&chMap[ch].subChannels[sub]) chMap[ch].subChannels[sub].revenue+=rev;
+      }
+    });
+    state.channels=Object.values(chMap).map(c=>({
+      ...c,
+      duration:c.dC?c.duration/c.dC:0,
+      engage:c.eC?c.engage/c.eC:0,
+      ppv:c.pC?c.ppv/c.pC:0,
+      subChannels:Object.values(c.subChannels).map(s=>({
+        ...s,
+        duration:s.dC?s.duration/s.dC:0,
+        engage:s.eC?s.engage/s.eC:0
+      })).sort((a,b)=>b.revenue-a.revenue)
+    })).sort((a,b)=>b.users-a.users);
+
+    // 회원가입 채널
+    state.signupByChannel=[];
+    (signupByChannel.rows||[]).forEach(row=>{
+      const src=row.dimensionValues[0].value, med=row.dimensionValues[1].value;
+      const ch=classifyChannel(src,med); if(!ch) return;
+      const count=parseInt(row.metricValues[0].value||0);
+      const existing=state.signupByChannel.find(s=>s.channel===ch);
+      if(existing) existing.count+=count;
+      else state.signupByChannel.push({channel:ch,count});
+    });
+    state.signupByChannel.sort((a,b)=>b.count-a.count);
+
+    // 시간대별 데이터
+    const hourlyMap = Array.from({length:24}, (_,i) => ({hour:i, users:0, revenue:0, transactions:0}));
+    (hourlyData.rows||[]).forEach(row => {
+      const h = parseInt(row.dimensionValues[0].value);
+      if(h>=0&&h<24) {
+        hourlyMap[h].users = parseInt(row.metricValues[0].value||0);
+        hourlyMap[h].revenue = parseFloat(row.metricValues[1].value||0);
+        hourlyMap[h].transactions = parseInt(row.metricValues[2].value||0);
+      }
+    });
+    state.hourly = hourlyMap;
+
+    // 요일별 데이터 (GA4: 0=일, 1=월 ... 6=토)
+    const dayLabels = ['일','월','화','수','목','금','토'];
+    const dailyMap = Array.from({length:7}, (_,i) => ({day:i, label:dayLabels[i], users:0, revenue:0, transactions:0}));
+    (dailyData.rows||[]).forEach(row => {
+      const d = parseInt(row.dimensionValues[0].value);
+      if(d>=0&&d<7) {
+        dailyMap[d].users = parseInt(row.metricValues[0].value||0);
+        dailyMap[d].revenue = parseFloat(row.metricValues[1].value||0);
+        dailyMap[d].transactions = parseInt(row.metricValues[2].value||0);
+      }
+    });
+    state.daily = dailyMap;
+
+    // 고객 분석 데이터
+    const custMap = {new:{users:0,revenue:0,transactions:0}, returning:{users:0,revenue:0,transactions:0}};
+    (customerData.rows||[]).forEach(row => {
+      const key = row.dimensionValues[0].value.toLowerCase().includes('new') ? 'new' : 'returning';
+      custMap[key].users += parseInt(row.metricValues[0].value||0);
+      custMap[key].revenue += parseFloat(row.metricValues[1].value||0);
+      custMap[key].transactions += parseInt(row.metricValues[2].value||0);
+    });
+    state.customer = custMap;
+
+    renderAll();
+  } catch(e) {
+    showError('오류: '+e.message);
+    document.getElementById('login-view').style.display='flex';
+    document.getElementById('dashboard-view').style.display='none';
+  }
+}
+
+function renderAll() {
+  renderOverview(); renderCategory('healthcare'); renderCategory('medical');
+  renderInfluencer(); renderChannel(); renderFunnel(); renderMember(); renderBehavior(); renderCustomer();
+}
+
+function renderOverview() {
+  const o=state.overview;
+  const cvr=o.users>0?((state.funnel.purchaseUsers/o.users)*100).toFixed(1):'0.0';
+  document.getElementById('ov-users').textContent=fmtNum(o.users);
+  document.getElementById('ov-duration').textContent=fmtTime(o.duration);
+  document.getElementById('ov-revenue').textContent='₩'+fmtMoney(o.revenue);
+  document.getElementById('ov-cvr').textContent=cvr+'%';
+  document.getElementById('ov-gongu-rev').textContent='₩'+fmtMoney(o.gonguRevenue);
+  document.getElementById('ov-own-rev').textContent='₩'+fmtMoney(o.ownRevenue);
+
+  // 신규 vs 재방문
+  const nv=state.newVsReturn;
+  const total=(nv.new+nv.returning)||1;
+  const newPct=Math.round((nv.new/total)*100);
+  document.getElementById('new-return-bar').innerHTML=`
+    <div class="ratio-bar"><div class="ratio-new" style="width:${newPct}%"></div><div class="ratio-return" style="width:${100-newPct}%"></div></div>
+    <div class="ratio-legend">
+      <span><span class="legend-dot" style="background:var(--accent)"></span>신규 ${fmtNum(nv.new)}명 (${newPct}%)</span>
+      <span><span class="legend-dot" style="background:var(--accent2)"></span>재방문 ${fmtNum(nv.returning)}명 (${100-newPct}%)</span>
+    </div>
+    <p style="font-size:12px;color:var(--text3);margin-top:8px;">재방문자 비율이 높을수록 충성 고객이 많다는 뜻이에요.</p>`;
+
+  // 카테고리 요약
+  const hc=state.products.filter(p=>p.category==='healthcare');
+  const md=state.products.filter(p=>p.category==='medical');
+  const sum=arr=>arr.reduce((s,r)=>s+r.users,0);
+  const avgDur=arr=>arr.length?arr.reduce((s,r)=>s+r.duration,0)/arr.length:0;
+  const avgEng=arr=>arr.length?arr.reduce((s,r)=>s+r.engage,0)/arr.length:0;
+  document.getElementById('cat-summary').innerHTML=`
+    <div class="cat-card"><div class="cat-header"><span class="cat-badge badge-hc">헬스케어</span></div>
+      <div class="cat-metrics">
+        <div><div class="cat-metric-label">방문자</div><div class="cat-metric-val val-hc">${fmtNum(sum(hc))}</div></div>
+        <div><div class="cat-metric-label">체류시간</div><div class="cat-metric-val val-hc">${fmtTime(avgDur(hc))}</div></div>
+        <div><div class="cat-metric-label">참여율</div><div class="cat-metric-val val-hc">${(avgEng(hc)*100).toFixed(1)}%</div></div>
+        <div><div class="cat-metric-label">상품 수</div><div class="cat-metric-val val-hc">${hc.length}개</div></div>
+      </div></div>
+    <div class="cat-card"><div class="cat-header"><span class="cat-badge badge-md">메디컬</span></div>
+      <div class="cat-metrics">
+        <div><div class="cat-metric-label">방문자</div><div class="cat-metric-val val-md">${fmtNum(sum(md))}</div></div>
+        <div><div class="cat-metric-label">체류시간</div><div class="cat-metric-val val-md">${fmtTime(avgDur(md))}</div></div>
+        <div><div class="cat-metric-label">참여율</div><div class="cat-metric-val val-md">${(avgEng(md)*100).toFixed(1)}%</div></div>
+        <div><div class="cat-metric-label">상품 수</div><div class="cat-metric-val val-md">${md.length}개</div></div>
+      </div></div>`;
+
+  const top8=[...state.products].sort((a,b)=>b.users-a.users).slice(0,8);
+  const maxU=Math.max(...top8.map(r=>r.users),1);
+  document.getElementById('top-products').innerHTML=top8.map(r=>{
+    const pct=Math.round((r.users/maxU)*100);
+    const color=r.category==='healthcare'?'var(--healthcare)':'var(--medical)';
+    return `<div class="hbar-row"><span class="hbar-label">${r.name}</span><div class="hbar-track"><div class="hbar-fill" style="width:${pct}%;background:${color}"></div></div><span class="hbar-val">${fmtNum(r.users)}</span></div>`;
+  }).join('');
+
+  const top6ch=state.channels.slice(0,6);
+  const maxCh=Math.max(...top6ch.map(r=>r.users),1);
+  document.getElementById('top-channels').innerHTML=top6ch.map(r=>{
+    const pct=Math.round((r.users/maxCh)*100);
+    const info=CHANNEL_MAP[r.channel]||{label:r.channel,color:'#888'};
+    return `<div class="hbar-row"><span class="hbar-label">${info.label}</span><div class="hbar-track"><div class="hbar-fill" style="width:${pct}%;background:${info.color}"></div></div><span class="hbar-val">${fmtNum(r.users)}</span></div>`;
+  }).join('');
+}
+
+function renderCategory(cat) {
+  const rows=state.products.filter(p=>p.category===cat);
+  const pre=cat==='healthcare'?'hc':'md';
+  const color=cat==='healthcare'?'var(--healthcare)':'var(--medical)';
+  const sum=rows.reduce((s,r)=>s+r.users,0);
+  const avgDur=rows.length?rows.reduce((s,r)=>s+r.duration,0)/rows.length:0;
+  const avgEng=rows.length?rows.reduce((s,r)=>s+r.engage,0)/rows.length:0;
+  document.getElementById(`${pre}-users`).textContent=fmtNum(sum);
+  document.getElementById(`${pre}-duration`).textContent=fmtTime(avgDur);
+  document.getElementById(`${pre}-engage`).textContent=(avgEng*100).toFixed(1)+'%';
+  const sorted=[...rows].sort((a,b)=>b.users-a.users);
+  const maxU=Math.max(...sorted.map(r=>r.users),1);
+  document.getElementById(`${pre}-chart`).innerHTML=sorted.map(r=>{
+    const pct=Math.round((r.users/maxU)*100);
+    return `<div class="hbar-row"><span class="hbar-label">${r.name}</span><div class="hbar-track"><div class="hbar-fill" style="width:${pct}%;background:${color}"></div></div><span class="hbar-val">${fmtNum(r.users)}</span></div>`;
+  }).join('');
+  renderSortableTable(`${pre}-table`, rows, cat);
+}
+
+function renderInfluencer() {
+  const rows=state.influencers;
+  const total=rows.reduce((s,r)=>s+r.users,0);
+  const avgDur=rows.length?rows.reduce((s,r)=>s+r.duration,0)/rows.length:0;
+  const avgEng=rows.length?rows.reduce((s,r)=>s+r.engage,0)/rows.length:0;
+  document.getElementById('inf-users').textContent=fmtNum(total);
+  document.getElementById('inf-duration').textContent=fmtTime(avgDur);
+  document.getElementById('inf-engage').textContent=(avgEng*100).toFixed(1)+'%';
+  const byU=[...rows].sort((a,b)=>b.users-a.users);
+  const byD=[...rows].sort((a,b)=>b.duration-a.duration);
+  const maxU=Math.max(...byU.map(r=>r.users),1);
+  const maxD=Math.max(...byD.map(r=>r.duration),1);
+  document.getElementById('inf-users-chart').innerHTML=byU.map(r=>{
+    const pct=Math.round((r.users/maxU)*100);
+    return `<div class="hbar-row"><span class="hbar-label">@${r.influencer}</span><div class="hbar-track"><div class="hbar-fill" style="width:${pct}%;background:var(--influencer)"></div></div><span class="hbar-val">${fmtNum(r.users)}</span></div>`;
+  }).join('');
+  document.getElementById('inf-duration-chart').innerHTML=byD.map(r=>{
+    const pct=Math.round((r.duration/maxD)*100);
+    return `<div class="hbar-row"><span class="hbar-label">@${r.influencer}</span><div class="hbar-track"><div class="hbar-fill" style="width:${pct}%;background:var(--accent2)"></div></div><span class="hbar-val">${fmtTime(r.duration)}</span></div>`;
+  }).join('');
+  renderInfTable(byU);
+}
+
+function renderInfTable(rows) {
+  document.getElementById('inf-table').innerHTML=`<table class="tbl"><thead><tr>
+    <th style="text-align:left;">인플루언서</th>
+    <th onclick="sortInf('users')">방문자</th>
+    <th onclick="sortInf('duration')">체류시간</th>
+    <th onclick="sortInf('engage')">참여율</th>
+    <th>상품</th>
+  </tr></thead><tbody>${rows.map(r=>`<tr>
+    <td><span class="pill pill-pink">@${r.influencer}</span></td>
+    <td>${fmtNum(r.users)}</td>
+    <td>${fmtTime(r.duration)}</td>
+    <td><span class="pill pill-green">${(r.engage*100).toFixed(1)}%</span></td>
+    <td style="font-size:11px;color:var(--text3);text-align:right;">${r.products}</td>
+  </tr>`).join('')}</tbody></table>`;
+}
+
+let infSort={col:'users',dir:'desc'};
+function sortInf(col) {
+  infSort.dir=infSort.col===col?(infSort.dir==='desc'?'asc':'desc'):'desc';
+  infSort.col=col;
+  renderInfTable([...state.influencers].sort((a,b)=>infSort.dir==='desc'?b[col]-a[col]:a[col]-b[col]));
+}
+
+function renderChannel() {
+  const rows=state.channels;
+  const maxU=Math.max(...rows.map(r=>r.users),1);
+  document.getElementById('channel-bar').innerHTML=rows.map(r=>{
+    const pct=Math.round((r.users/maxU)*100);
+    const info=CHANNEL_MAP[r.channel]||{label:r.channel,color:'#888'};
+    return `<div class="hbar-row"><span class="hbar-label">${info.label}</span><div class="hbar-track"><div class="hbar-fill" style="width:${pct}%;background:${info.color}"></div></div><span class="hbar-val">${fmtNum(r.users)}</span></div>`;
+  }).join('');
+
+  // 채널 카드 (대분류 + 세분류 펼쳐서)
+  document.getElementById('channel-cards').innerHTML=rows.map(r=>{
+    const info=CHANNEL_MAP[r.channel]||{label:r.channel,color:'#888'};
+    const subHtml=r.subChannels&&r.subChannels.length?`
+      <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border);">
+        <div style="font-size:10px;color:var(--text3);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:8px;">세부 채널 (매출 기준)</div>
+        ${r.subChannels.filter(sub=>sub.revenue>0||sub.users>0).map(sub=>{
+          const si=CHANNEL_SUB_MAP[sub.sub]||{label:sub.sub,color:'#888'};
+          const maxRev=Math.max(...r.subChannels.map(s=>s.revenue),1);
+          const pct=sub.revenue>0?Math.round((sub.revenue/maxRev)*100):Math.round((sub.users/(r.users||1))*30);
+          return `<div class="hbar-row" style="margin-bottom:6px;">
+            <span class="hbar-label" ${si.label}</span>${si.label}</span>
+            <div class="hbar-track" style="height:5px;"><div class="hbar-fill" style="width:${pct}%;background:${si.color}"></div></div>
+            <span class="hbar-val" style="font-size:11px;color:${sub.revenue>0?'var(--amber)':'#999'};width:100px;">${sub.revenue>0?'₩'+fmtMoney(sub.revenue):fmtNum(sub.users)+'명'}</span>
+          </div>`;
+        }).join('')}
+      </div>`:'';
+    const revHtml=r.revenue>0?`<div><div class="ch-label">매출 <span style="color:var(--text3);font-size:9px;">(참고용)</span></div><div class="ch-val" style="color:var(--amber);">₩${fmtMoney(r.revenue)}</div></div>`:'';
+    return `<div class="channel-card">
+      <div class="channel-name"><span class="channel-dot" style="background:${info.color}"></span>${info.label}</div>
+      <div class="channel-metrics">
+        <div><div class="ch-label">방문자</div><div class="ch-val">${fmtNum(r.users)}</div></div>
+        <div><div class="ch-label">체류시간</div><div class="ch-val">${fmtTime(r.duration)}</div></div>
+        <div><div class="ch-label">참여율</div><div class="ch-val">${(r.engage*100).toFixed(1)}%</div></div>
+        ${revHtml}
+      </div>
+      ${subHtml}
+    </div>`;
+  }).join('');
+
+  // 테이블
+  document.getElementById('channel-table').innerHTML=`<table class="tbl"><thead><tr>
+    <th style="text-align:left;">채널</th><th>방문자</th><th>체류시간</th><th>참여율</th><th>페이지뷰</th><th>매출 <span style="font-size:9px;color:var(--text3);">(참고)</span></th>
+  </tr></thead><tbody>${rows.map(r=>{
+    const info=CHANNEL_MAP[r.channel]||{label:r.channel,color:'#888'};
+    const subRows=r.subChannels&&r.subChannels.length?r.subChannels.filter(sub=>sub.revenue>0||sub.users>0).map(sub=>{
+      const si=CHANNEL_SUB_MAP[sub.sub]||{label:sub.sub,color:'#888'};
+      return `<tr style="background:rgba(255,255,255,0.02);">
+        <td style="padding-left:24px;color:#bbb;font-size:12px;">
+          <span style="display:inline-flex;align-items:center;gap:6px;"><span style="width:6px;height:6px;border-radius:50%;background:${si.color};display:inline-block;flex-shrink:0;"></span>${si.label}</span>
+        </td>
+        <td style="color:#bbb;font-size:12px;">${fmtNum(sub.users)}</td>
+        <td style="color:#bbb;font-size:12px;">${fmtTime(sub.duration)}</td>
+        <td style="color:#bbb;font-size:12px;">${(sub.engage*100).toFixed(1)}%</td>
+        <td>—</td>
+        <td style="color:${sub.revenue>0?'var(--amber)':'#777'};font-size:12px;">${sub.revenue>0?'₩'+fmtMoney(sub.revenue):'—'}</td>
+      </tr>`;
+    }).join(''):'';
+    return `<tr>
+      <td><span style="display:inline-flex;align-items:center;gap:6px;font-weight:500;"><span style="width:8px;height:8px;border-radius:50%;background:${info.color};display:inline-block;flex-shrink:0;"></span>${info.label}</span></td>
+      <td>${fmtNum(r.users)}</td><td>${fmtTime(r.duration)}</td>
+      <td><span class="pill pill-green">${(r.engage*100).toFixed(1)}%</span></td>
+      <td>${r.ppv.toFixed(1)}회</td>
+      <td style="color:${r.revenue>0?'var(--amber)':'var(--text3)'};">${r.revenue>0?'₩'+fmtMoney(r.revenue):'—'}</td>
+    </tr>${subRows}`;
+  }).join('')}</tbody></table>`;
+}
+
+function renderFunnel() {
+  const f=state.funnel;
+  const o=state.overview;
+  const steps=[
+    {label:'세션 시작', val:o.sessions, desc:'사이트 방문 횟수'},
+    {label:'장바구니', val:f.addCart, desc:'장바구니에 담기'},
+    {label:'결제 시작', val:f.beginCheckout, desc:'결제 진행'},
+    {label:'구매 완료', val:f.purchase, desc:'최종 구매'}
+  ].filter(s=>s.val>0);
+
+  const max=steps[0]?.val||1;
+  const worstDrop=steps.reduce((worst,s,i)=>{
+    if(i===0) return worst;
+    const dropPct=((1-s.val/steps[i-1].val)*100);
+    return dropPct>worst.pct?{label:steps[i-1].label,pct:dropPct}:worst;
+  },{label:'',pct:0});
+
+  document.getElementById('funnel-insight').innerHTML=`가장 많이 이탈하는 구간은 <strong>${worstDrop.label} → 다음 단계</strong>로, <strong>${worstDrop.pct.toFixed(0)}%</strong>가 이 단계에서 나가요. 이 구간 개선이 매출 향상에 가장 효과적이에요.`;
+
+  document.getElementById('funnel-steps').innerHTML=`<div class="funnel-wrap">${steps.map((s,i)=>{
+    const pct=Math.round((s.val/max)*100);
+    const fromFirst=i>0?((s.val/steps[0].val)*100).toFixed(1):'100';
+    const dropPct=i>0&&steps[i-1].val>0?((1-s.val/steps[i-1].val)*100).toFixed(0):null;
+    const alpha=0.08+0.18*(1-i/steps.length);
+    return `<div class="funnel-step" style="background:rgba(79,142,247,${alpha})">
+      <div class="funnel-step-label">${s.label}</div>
+      <div class="funnel-step-num">${fmtNum(s.val)}</div>
+      <div class="funnel-step-pct">${fromFirst}%</div>
+      ${dropPct?`<div class="funnel-step-drop">↓ ${dropPct}% 이탈</div>`:''}
+    </div>`;
+  }).join('')}</div>`;
+
+  document.getElementById('f-view').textContent=fmtNum(f.viewItem);
+  document.getElementById('f-cart').textContent=fmtNum(f.addCart);
+  document.getElementById('f-checkout').textContent=fmtNum(f.beginCheckout);
+  document.getElementById('f-purchase').textContent=fmtNum(f.purchase);
+
+  const hcUsers=state.products.filter(p=>p.category==='healthcare').reduce((s,r)=>s+r.users,0);
+  const mdUsers=state.products.filter(p=>p.category==='medical').reduce((s,r)=>s+r.users,0);
+  const total=hcUsers+mdUsers||1;
+  const hcP=Math.round(f.purchaseUsers*(hcUsers/total));
+  const mdP=Math.round(f.purchaseUsers*(mdUsers/total));
+  document.getElementById('f-hc-users').textContent=fmtNum(hcUsers);
+  document.getElementById('f-hc-cvr').textContent=hcUsers>0?((hcP/hcUsers)*100).toFixed(1)+'%':'—';
+  document.getElementById('f-md-users').textContent=fmtNum(mdUsers);
+  document.getElementById('f-md-cvr').textContent=mdUsers>0?((mdP/mdUsers)*100).toFixed(1)+'%':'—';
+}
+
+function renderMember() {
+  const sg=state.signup;
+  const totalUsers=state.overview.users||1;
+  const signupCvr=totalUsers>0?((sg.total/totalUsers)*100).toFixed(1):0;
+
+  const el=document.getElementById('member-insight');
+  if(el) el.innerHTML=`전체 방문자 <strong>${fmtNum(totalUsers)}명</strong> 중 <strong>${fmtNum(sg.total)}명</strong>이 회원가입했어요. 방문자 100명 중 <strong>${signupCvr}명</strong>이 가입하는 셈이에요.`;
+  const memNew=document.getElementById('mem-new');
+  const memSignup=document.getElementById('mem-signup');
+  const memCvr=document.getElementById('mem-cvr');
+  const memTotalCvr=document.getElementById('mem-total-cvr');
+  if(memNew) memNew.textContent=fmtNum(totalUsers);
+  if(memSignup) memSignup.textContent=fmtNum(sg.total);
+  if(memCvr) memCvr.textContent=signupCvr+'%';
+  if(memTotalCvr) memTotalCvr.textContent=signupCvr+'%';
+
+  const gaugeFill=document.getElementById('signup-gauge-fill');
+  const gaugeVal=document.getElementById('signup-gauge-val');
+  const gaugePct=Math.min(parseFloat(signupCvr),100);
+  if(gaugeFill) gaugeFill.style.width=gaugePct+'%';
+  if(gaugeVal) gaugeVal.textContent=signupCvr+'%';
+
+  // 채널별 회원가입
+  const chRows=state.signupByChannel||[];
+  const maxCh=Math.max(...chRows.map(r=>r.count),1);
+  const signupChEl=document.getElementById('signup-channel-chart');
+  if(signupChEl) signupChEl.innerHTML=chRows.slice(0,7).map(r=>{
+    const info=CHANNEL_MAP[r.channel]||{label:r.channel,color:'#888'};
+    const pct=Math.round((r.count/maxCh)*100);
+    return `<div class="hbar-row"><span class="hbar-label">${info.label}</span><div class="hbar-track"><div class="hbar-fill" style="width:${pct}%;background:${info.color}"></div></div><span class="hbar-val">${fmtNum(r.count)}</span></div>`;
+  }).join('') || '<p style="font-size:13px;color:var(--text3);">데이터 없음</p>';
+
+  // 신규 vs 재방문
+  const nv=state.newVsReturn;
+  const totalNV=(nv.new+nv.returning)||1;
+  const newPct=Math.round((nv.new/totalNV)*100);
+  const signupNREl=document.getElementById('signup-new-return');
+  if(signupNREl) signupNREl.innerHTML=`
+    <div class="ratio-bar"><div class="ratio-new" style="width:${newPct}%"></div><div class="ratio-return" style="width:${100-newPct}%"></div></div>
+    <div class="ratio-legend">
+      <span><span class="legend-dot" style="background:var(--accent)"></span>신규 ${newPct}%</span>
+      <span><span class="legend-dot" style="background:var(--accent2)"></span>재방문 ${100-newPct}%</span>
+    </div>
+    <p style="font-size:12px;color:var(--text3);margin-top:10px;">재방문자도 가입하고 있다면 리타겟팅이 효과적이라는 뜻이에요.</p>`;
+}
+
+// 정렬 테이블
+const COLS=[
+  {key:'name',label:'상품명',fmt:r=>r.name,val:r=>r.name},
+  {key:'users',label:'방문자',fmt:r=>fmtNum(r.users),val:r=>r.users},
+  {key:'duration',label:'체류시간',fmt:r=>fmtTime(r.duration),val:r=>r.duration},
+  {key:'engage',label:'참여율',fmt:r=>`<span class="pill pill-green">${(r.engage*100).toFixed(1)}%</span>`,val:r=>r.engage},
+  {key:'views',label:'페이지뷰',fmt:r=>fmtNum(r.views),val:r=>r.views},
+];
+
+function renderSortableTable(id, rows, cat) {
+  if(!sortState[id]) sortState[id]={col:'users',dir:'desc'};
+  const st=sortState[id];
+  const sorted=[...rows].sort((a,b)=>{
+    const col=COLS.find(c=>c.key===st.col); if(!col) return 0;
+    const av=col.val(a),bv=col.val(b);
+    if(typeof av==='string') return st.dir==='asc'?av.localeCompare(bv):bv.localeCompare(av);
+    return st.dir==='asc'?av-bv:bv-av;
+  });
+  const thead=COLS.map(c=>`<th class="${c.key===st.col?`sort-${st.dir}`:''}" onclick="sortTable('${id}','${c.key}','${cat}')">${c.label}</th>`).join('');
+  const tbody=sorted.map(r=>`<tr>${COLS.map(c=>`<td>${c.fmt(r)}</td>`).join('')}</tr>`).join('');
+  document.getElementById(id).innerHTML=`<table class="tbl"><thead><tr>${thead}</tr></thead><tbody>${tbody}</tbody></table>`;
+}
+
+function sortTable(id, col, cat) {
+  const st=sortState[id];
+  st.dir=st.col===col?(st.dir==='desc'?'asc':'desc'):'desc';
+  st.col=col;
+  renderSortableTable(id, state.products.filter(p=>p.category===cat), cat);
+}
+
+function switchBehaviorTab(tab) {
+  document.getElementById('bview-hourly').style.display = tab==='hourly'?'block':'none';
+  document.getElementById('bview-daily').style.display = tab==='daily'?'block':'none';
+  const activeStyle = `padding:6px 18px;border-radius:5px;font-size:13px;font-weight:500;border:1px solid var(--border2);cursor:pointer;background:var(--bg3);color:var(--text);font-family:var(--font);`;
+  const inactiveStyle = `padding:6px 18px;border-radius:5px;font-size:13px;font-weight:500;border:none;cursor:pointer;background:none;color:#bbb;font-family:var(--font);`;
+  document.getElementById('btab-hourly').style.cssText = tab==='hourly'?activeStyle:inactiveStyle;
+  document.getElementById('btab-daily').style.cssText = tab==='daily'?activeStyle:inactiveStyle;
+}
+
+let behaviorCharts = {};
+function renderBehavior() {
+  const h = state.hourly||[];
+  const d = state.daily||[];
+  if(!h.length && !d.length) return;
+
+  // 시간대별 지표
+  const peakH = [...h].sort((a,b)=>b.users-a.users)[0];
+  const peakRevH = [...h].sort((a,b)=>b.revenue-a.revenue)[0];
+  const lowH = [...h].filter(r=>r.users>0).sort((a,b)=>a.users-b.users)[0];
+  const fmtHour = h => h!==undefined ? (h<12?`오전 ${h===0?12:h}시`:`오후 ${h===12?12:h-12}시`) : '—';
+
+  const el = id => document.getElementById(id);
+  if(el('bh-peak-hour')) el('bh-peak-hour').textContent = fmtHour(peakH?.hour);
+  if(el('bh-peak-rev-hour')) el('bh-peak-rev-hour').textContent = fmtHour(peakRevH?.hour);
+  if(el('bh-peak-txn')) el('bh-peak-txn').textContent = fmtNum(peakRevH?.transactions)+'건';
+  if(el('bh-low-hour')) el('bh-low-hour').textContent = fmtHour(lowH?.hour);
+
+  // 요일별 지표
+  const peakDay = [...d].sort((a,b)=>b.revenue-a.revenue)[0];
+  const lowDay = [...d].filter(r=>r.revenue>0).sort((a,b)=>a.revenue-b.revenue)[0];
+  const peakUsersDay = [...d].sort((a,b)=>b.users-a.users)[0];
+  const weekend = d.filter(r=>r.day===0||r.day===6).reduce((s,r)=>s+r.revenue,0);
+  const weekday = d.filter(r=>r.day>=1&&r.day<=5).reduce((s,r)=>s+r.revenue,0);
+  const weekendRatio = weekday>0 ? ((weekend/5)/(weekday/5)*100).toFixed(0) : '—';
+  if(el('bd-peak-day')) el('bd-peak-day').textContent = peakDay?.label+'요일';
+  if(el('bd-low-day')) el('bd-low-day').textContent = lowDay?.label+'요일';
+  if(el('bd-peak-users')) el('bd-peak-users').textContent = peakUsersDay?.label+'요일';
+  if(el('bd-weekend-ratio')) el('bd-weekend-ratio').textContent = weekendRatio+'%';
+
+  if(behaviorCharts['hourly']) { behaviorCharts['hourly'].destroy(); }
+  if(behaviorCharts['hourly-txn']) { behaviorCharts['hourly-txn'].destroy(); }
+  if(behaviorCharts['daily']) { behaviorCharts['daily'].destroy(); }
+  if(behaviorCharts['daily-txn']) { behaviorCharts['daily-txn'].destroy(); }
+
+  const isDark = true;
+  const textColor = '#aaa';
+  const gridColor = 'rgba(255,255,255,0.06)';
+  const fmtRevAxis = v => { if(v>=1000000) return (v/1000000).toFixed(1)+'M'; if(v>=10000) return (v/10000).toFixed(0)+'만'; return v; };
+
+  // 시간대별 차트
+  behaviorCharts['hourly'] = new Chart(document.getElementById('hourly-chart').getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: h.map(r => r.hour%3===0?`${r.hour}시`:''),
+      datasets: [
+        { label:'방문자', data:h.map(r=>r.users), backgroundColor:'rgba(79,142,247,0.65)', yAxisID:'y', order:2 },
+        { label:'매출', data:h.map(r=>r.revenue), type:'line', borderColor:'#f59e0b', backgroundColor:'transparent', pointRadius:2, borderWidth:2, yAxisID:'y2', order:1, tension:0.4 }
+      ]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label: ctx => ctx.dataset.label==='매출'?'₩'+Math.round(ctx.raw).toLocaleString()+'원':ctx.raw.toLocaleString()+'명' } } },
+      scales:{
+        x:{ ticks:{color:textColor,font:{size:11}}, grid:{color:gridColor} },
+        y:{ ticks:{color:textColor,font:{size:11}}, grid:{color:gridColor}, title:{display:true,text:'방문자',color:textColor,font:{size:11}} },
+        y2:{ position:'right', ticks:{color:'#f59e0b',font:{size:11},callback:fmtRevAxis}, grid:{display:false}, title:{display:true,text:'매출',color:'#f59e0b',font:{size:11}} }
+      }
+    }
+  });
+
+  // 시간대별 구매건수
+  behaviorCharts['hourly-txn'] = new Chart(document.getElementById('hourly-txn-chart').getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: h.map(r => r.hour%3===0?`${r.hour}시`:''),
+      datasets: [{ label:'구매건수', data:h.map(r=>r.transactions), backgroundColor:'rgba(46,204,138,0.65)' }]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label: ctx => ctx.raw.toLocaleString()+'건' } } },
+      scales:{ x:{ticks:{color:textColor,font:{size:11}},grid:{color:gridColor}}, y:{ticks:{color:textColor,font:{size:11}},grid:{color:gridColor}} }
+    }
+  });
+
+  // 요일별 차트 (GA4: 0=일 → 월화수목금토일 순으로 재정렬)
+  const dayOrder = [1,2,3,4,5,6,0]; // 월~일
+  const dayLabelsOrdered = dayOrder.map(i=>d[i]?.label+'요일'||'');
+  behaviorCharts['daily'] = new Chart(document.getElementById('daily-chart').getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: dayLabelsOrdered,
+      datasets: [
+        { label:'방문자', data:dayOrder.map(i=>d[i]?.users||0), backgroundColor:'rgba(167,139,250,0.65)', yAxisID:'y', order:2 },
+        { label:'매출', data:dayOrder.map(i=>d[i]?.revenue||0), type:'line', borderColor:'#f59e0b', backgroundColor:'transparent', pointRadius:5, borderWidth:2, yAxisID:'y2', order:1, tension:0.3 }
+      ]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label: ctx => ctx.dataset.label==='매출'?'₩'+Math.round(ctx.raw).toLocaleString()+'원':ctx.raw.toLocaleString()+'명' } } },
+      scales:{
+        x:{ ticks:{color:textColor,font:{size:12}}, grid:{color:gridColor} },
+        y:{ ticks:{color:textColor,font:{size:11}}, grid:{color:gridColor}, title:{display:true,text:'방문자',color:textColor,font:{size:11}} },
+        y2:{ position:'right', ticks:{color:'#f59e0b',font:{size:11},callback:fmtRevAxis}, grid:{display:false}, title:{display:true,text:'매출',color:'#f59e0b',font:{size:11}} }
+      }
+    }
+  });
+
+  // 요일별 구매건수
+  behaviorCharts['daily-txn'] = new Chart(document.getElementById('daily-txn-chart').getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: dayLabelsOrdered,
+      datasets: [{ label:'구매건수', data:dayOrder.map(i=>d[i]?.transactions||0), backgroundColor:'rgba(244,114,182,0.65)' }]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label: ctx => ctx.raw.toLocaleString()+'건' } } },
+      scales:{ x:{ticks:{color:textColor,font:{size:12}},grid:{color:gridColor}}, y:{ticks:{color:textColor,font:{size:11}},grid:{color:gridColor}} }
+    }
+  });
+}
+
+function downloadCSV() {
+  const lines=['=== 상품별 데이터 ===','상품명,카테고리,방문자,체류시간(초),참여율(%),페이지뷰',
+    ...state.products.map(r=>[`"${r.name}"`,r.category,r.users,Math.round(r.duration),(r.engage*100).toFixed(1),r.views].join(',')),
+    '','=== 인플루언서 공구 ===','인플루언서,방문자,체류시간(초),참여율(%)',
+    ...state.influencers.map(r=>[`"@${r.influencer}"`,r.users,Math.round(r.duration),(r.engage*100).toFixed(1)].join(',')),
+    '','=== 채널별 데이터 ===','채널,방문자,체류시간(초),참여율(%)',
+    ...state.channels.map(r=>[`"${CHANNEL_MAP[r.channel]?.label||r.channel}"`,r.users,Math.round(r.duration),(r.engage*100).toFixed(1)].join(',')),
+    '','=== 회원가입 ===',
+    `신규방문자,${state.signup.newUsers}`,`회원가입,${state.signup.total}`,
+    `가입전환율,${state.signup.newUsers>0?((state.signup.total/state.signup.newUsers)*100).toFixed(2):0}%`,
+    '','=== 구매 퍼널 ===',
+    `상품조회,${state.funnel.viewItem}`,`장바구니,${state.funnel.addCart}`,
+    `결제시작,${state.funnel.beginCheckout}`,`구매완료,${state.funnel.purchase}`,
+    `총매출,${Math.round(state.overview.revenue)}`
+  ];
+  const blob=new Blob(['\uFEFF'+lines.join('\n')],{type:'text/csv;charset=utf-8;'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=`ga4_분석_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+}
+
+function renderCustomer() {
+  const c = state.customer||{new:{users:0,revenue:0,transactions:0},returning:{users:0,revenue:0,transactions:0}};
+  const o = state.overview||{};
+  const newU=c.new.users||0, retU=c.returning.users||0;
+  const newTxn=c.new.transactions||0, retTxn=c.returning.transactions||0;
+  const totalTxn=newTxn+retTxn||1, totalUsers=newU+retU||1;
+  const repurchaseRate=((retTxn/totalTxn)*100).toFixed(1);
+  const ltv=totalUsers>0?(o.revenue/totalUsers):0;
+  const newCvr=newU>0?((newTxn/newU)*100).toFixed(1):'0.0';
+  const retCvr=retU>0?((retTxn/retU)*100).toFixed(1):'0.0';
+  const maxCvr=Math.max(parseFloat(newCvr),parseFloat(retCvr),0.1);
+
+  // 1인당 평균 구매횟수
+  const purchaseUsers=state.funnel?.purchaseUsers||1;
+  const totalTxnAll=newTxn+retTxn;
+  const avgPerUser=purchaseUsers>0?(totalTxnAll/purchaseUsers):0;
+
+  const el=id=>document.getElementById(id);
+  if(el('cu-repurchase-rate'))el('cu-repurchase-rate').textContent=repurchaseRate+'%';
+  if(el('cu-new-buyers'))el('cu-new-buyers').textContent=fmtNum(newTxn)+'건';
+  if(el('cu-return-buyers'))el('cu-return-buyers').textContent=fmtNum(retTxn)+'건';
+  if(el('cu-ltv'))el('cu-ltv').textContent='₩'+fmtMoney(ltv);
+  if(el('cu-cycle'))el('cu-cycle').textContent=avgPerUser>0?avgPerUser.toFixed(2)+'회':'—';
+  if(el('cu-cycle-desc'))el('cu-cycle-desc').textContent=avgPerUser>0?`구매자 1명이 이 기간 평균 ${avgPerUser.toFixed(1)}번 구매했어요`:'데이터 부족';
+  if(el('cu-cycle-formula'))el('cu-cycle-formula').textContent=`총 구매 ${fmtNum(totalTxnAll)}건 ÷ 구매자 ${fmtNum(purchaseUsers)}명 = ${avgPerUser.toFixed(2)}회`;
+  if(el('cu-new-cvr'))el('cu-new-cvr').textContent=newCvr+'%';
+  if(el('cu-new-cvr-desc'))el('cu-new-cvr-desc').textContent=`신규 방문자 ${fmtNum(newU)}명 중 ${fmtNum(newTxn)}건 구매`;
+  if(el('cu-new-cvr-bar'))el('cu-new-cvr-bar').style.width=Math.min((parseFloat(newCvr)/maxCvr)*100,100)+'%';
+  if(el('cu-return-cvr'))el('cu-return-cvr').textContent=retCvr+'%';
+  if(el('cu-return-cvr-desc'))el('cu-return-cvr-desc').textContent=`재방문자 ${fmtNum(retU)}명 중 ${fmtNum(retTxn)}건 구매`;
+  if(el('cu-return-cvr-bar'))el('cu-return-cvr-bar').style.width=Math.min((parseFloat(retCvr)/maxCvr)*100,100)+'%';
+
+  const retPct=Math.round((retTxn/totalTxn)*100);
+  const newPct=100-retPct;
+  if(el('cu-ratio-bar'))el('cu-ratio-bar').innerHTML=`
+    <div style="height:12px;border-radius:6px;overflow:hidden;display:flex;margin-bottom:8px;">
+      <div style="width:${newPct}%;background:var(--accent);"></div>
+      <div style="width:${retPct}%;background:var(--accent2);"></div>
+    </div>
+    <div style="display:flex;gap:20px;font-size:12px;color:#bbb;">
+      <span style="display:flex;align-items:center;gap:6px;"><span style="width:10px;height:10px;border-radius:2px;background:var(--accent);display:inline-block;"></span>신규 구매 ${fmtNum(newTxn)}건 (${newPct}%)</span>
+      <span style="display:flex;align-items:center;gap:6px;"><span style="width:10px;height:10px;border-radius:2px;background:var(--accent2);display:inline-block;"></span>재구매 ${fmtNum(retTxn)}건 (${retPct}%)</span>
+    </div>
+    <p style="font-size:12px;color:#888;margin-top:10px;">재구매 비율이 높을수록 충성 고객이 많고 마케팅 효율이 높아요.</p>`;
+}
+
+initDates();
+initScrollHint();
+const s=document.createElement('script');
+s.src='https://accounts.google.com/gsi/client';
+s.async=true;
+s.onload=onGsiLoaded;
+s.onerror=()=>{document.getElementById('status-msg').textContent='Google 라이브러리 로딩 실패.';};
+document.head.appendChild(s);
+const chartJs=document.createElement('script');
+chartJs.src='https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js';
+document.head.appendChild(chartJs);
+</script>
+</body>
+</html>
