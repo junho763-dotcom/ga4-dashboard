@@ -739,12 +739,12 @@ function classifyChannel(src, med, landingPage) {
 
   // (not set) 세분류 - landingPage 패턴으로 판단
   if(s==='(not set)'||s===''||m==='(not set)') {
-    if(/\/auth\/callback\/kakao|\/login\/social/.test(lp)) return null; // 카카오 로그인 콜백 제외
-    if(/\/payments\//.test(lp)) return null; // 결제 리다이렉트 제외
+    if(!lp) return 'direct';
     if(/@[a-zA-Z0-9_]+/.test(lp)) return null; // 공구 제외
-    if(/fbclid=/.test(lp)) return 'facebook'; // 페이스북 클릭ID
+    if(/fbclid=/.test(lp)) return 'facebook'; // 페이스북
     if(/NaPm=/.test(lp)) return 'naver'; // 네이버 napm
-    return 'direct'; // 나머지는 직접유입으로
+    if(/\/kr\/products\//.test(lp)) return 'kakao'; // 상품 페이지 → 카카오 알림톡
+    return 'direct'; // 로그인/가입/결제/카카오콜백/기타 → 직접유입
   }
 
   // 카카오 알림톡
@@ -771,11 +771,11 @@ function classifySubChannel(src, med, landingPage) {
 
   // (not set) 세분류
   if(s==='(not set)'||s===''||m==='(not set)') {
-    if(/\/auth\/callback\/kakao|\/login\/social/.test(lp)) return null;
-    if(/\/payments\//.test(lp)) return null;
+    if(!lp) return 'direct';
     if(/@[a-zA-Z0-9_]+/.test(lp)) return null;
     if(/fbclid=/.test(lp)) return 'fb_ad';
     if(/NaPm=/.test(lp)) return 'naver_brand';
+    if(/\/kr\/products\//.test(lp)) return 'kakao_other';
     return 'direct';
   }
 
