@@ -1037,7 +1037,7 @@ const GONGU_EXCLUDE = {
   }
 };
 
-async function setMode(mode, tab, btn) {
+function setMode(mode, tab, btn) {
   if(currentMode === mode) return;
   currentMode = mode;
   btn.closest('.mode-toggle').querySelectorAll('.mode-btn').forEach(b=>b.classList.remove('active'));
@@ -1045,7 +1045,7 @@ async function setMode(mode, tab, btn) {
 
   if(!accessToken) return;
 
-  // 모드에 따라 state 전환 (API 호출 없이 즉시)
+  // state 전환
   if(mode==='own') {
     state.funnel=state.ownFunnel||state.funnel;
     state.signup=state.ownSignup||state.signup;
@@ -1064,18 +1064,20 @@ async function setMode(mode, tab, btn) {
     state.signupByChannel=state.totalSignupByChannel||state.signupByChannel;
   }
 
-  // 현재 탭에 해당하는 것만 렌더링
-  if(tab==='funnel') { renderFunnel(); return; }
-  if(tab==='member') { renderMember(); return; }
-  if(tab==='customer') { renderCustomer(); return; }
-  if(tab==='behavior') {
-    ['hourly-chart','hourly-txn-chart','daily-chart','daily-txn-chart'].forEach(id=>{
-      const canvas=document.getElementById(id);
-      if(canvas){ const existing=Chart.getChart(canvas); if(existing){try{existing.destroy();}catch(e){}} }
-    });
-    behaviorCharts={};
-    renderBehavior();
-  }
+  // 다음 프레임에서 렌더링 (클릭 즉시 반응하게)
+  requestAnimationFrame(() => {
+    if(tab==='funnel') { renderFunnel(); return; }
+    if(tab==='member') { renderMember(); return; }
+    if(tab==='customer') { renderCustomer(); return; }
+    if(tab==='behavior') {
+      ['hourly-chart','hourly-txn-chart','daily-chart','daily-txn-chart'].forEach(id=>{
+        const canvas=document.getElementById(id);
+        if(canvas){ const existing=Chart.getChart(canvas); if(existing){try{existing.destroy();}catch(e){}} }
+      });
+      behaviorCharts={};
+      renderBehavior();
+    }
+  });
 }
 
 async function fetchAnalysisData() {
