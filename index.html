@@ -201,6 +201,7 @@
   .date-picker-label { font-size: 11px; color: #aaa; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.05em; }
   .date-picker-input { width: 100%; padding: 8px 10px; background: var(--bg3); border: 1px solid var(--border2); border-radius: 6px; color: var(--text); font-size: 13px; font-family: var(--mono); cursor: pointer; }
   .date-picker-input:focus { outline: none; border-color: var(--accent); }
+  .date-picker-input::-webkit-calendar-picker-indicator { opacity: 0; position: absolute; right: 0; width: 100%; cursor: pointer; }
   .date-picker-apply { width: 100%; padding: 9px; background: var(--accent); border: none; border-radius: 6px; color: white; font-size: 13px; font-weight: 500; cursor: pointer; font-family: var(--font); margin-top: 4px; }
   .date-picker-presets { display: grid; grid-template-columns: repeat(4,1fr); gap: 6px; margin-bottom: 12px; }
   .date-picker-preset { padding: 6px 4px; background: var(--bg3); border: 1px solid var(--border); border-radius: 6px; color: #bbb; font-size: 11px; cursor: pointer; font-family: var(--font); text-align: center; }
@@ -344,11 +345,17 @@
             <div class="date-picker-row">
               <div>
                 <div class="date-picker-label">시작일</div>
-                <input type="date" class="date-picker-input" id="dp-start">
+                <div style="position:relative;display:flex;align-items:center;">
+                  <input type="date" class="date-picker-input" id="dp-start" style="padding-right:36px;">
+                  <span onclick="document.getElementById('dp-start').showPicker()" style="position:absolute;right:10px;cursor:pointer;font-size:16px;user-select:none;">📅</span>
+                </div>
               </div>
               <div>
                 <div class="date-picker-label">종료일</div>
-                <input type="date" class="date-picker-input" id="dp-end">
+                <div style="position:relative;display:flex;align-items:center;">
+                  <input type="date" class="date-picker-input" id="dp-end" style="padding-right:36px;">
+                  <span onclick="document.getElementById('dp-end').showPicker()" style="position:absolute;right:10px;cursor:pointer;font-size:16px;user-select:none;">📅</span>
+                </div>
               </div>
             </div>
             <button class="date-picker-apply" onclick="applyDatePicker()">적용</button>
@@ -1133,6 +1140,19 @@ async function fetchAnalysisData() {
   // 렌더링
   renderFunnel();
   renderMember();
+  // 차트 destroy 및 canvas 재생성
+  ['hourly-chart','hourly-txn-chart','daily-chart','daily-txn-chart'].forEach(id=>{
+    if(behaviorCharts[id.replace('-chart','').replace('-txn','-txn')]) {
+      try { behaviorCharts[id]?.destroy(); } catch(e){}
+    }
+    const canvas = document.getElementById(id);
+    if(canvas) {
+      const parent = canvas.parentNode;
+      const newCanvas = document.createElement('canvas');
+      newCanvas.id = id;
+      parent.replaceChild(newCanvas, canvas);
+    }
+  });
   behaviorCharts={};
   renderBehavior();
   renderCustomer();
@@ -1687,10 +1707,13 @@ function renderBehavior() {
   if(el('bd-peak-users')) el('bd-peak-users').textContent = peakUsersDay?.label+'요일';
   if(el('bd-weekend-ratio')) el('bd-weekend-ratio').textContent = weekendRatio+'%';
 
-  if(behaviorCharts['hourly']) { behaviorCharts['hourly'].destroy(); }
-  if(behaviorCharts['hourly-txn']) { behaviorCharts['hourly-txn'].destroy(); }
-  if(behaviorCharts['daily']) { behaviorCharts['daily'].destroy(); }
-  if(behaviorCharts['daily-txn']) { behaviorCharts['daily-txn'].destroy(); }
+  // 기존 차트 destroy 및 canvas 재생성
+  ['hourly-chart','hourly-txn-chart','daily-chart','daily-txn-chart'].forEach(id=>{
+    const key=id;
+    if(behaviorCharts[key]) { try{behaviorCharts[key].destroy();}catch(e){} delete behaviorCharts[key]; }
+    const canvas=document.getElementById(id);
+    if(canvas) { const p=canvas.parentNode; const nc=document.createElement('canvas'); nc.id=id; p.replaceChild(nc,canvas); }
+  });
 
   const isDark = true;
   const textColor = '#aaa';
@@ -1698,7 +1721,7 @@ function renderBehavior() {
   const fmtRevAxis = v => { if(v>=1000000) return (v/1000000).toFixed(1)+'M'; if(v>=10000) return (v/10000).toFixed(0)+'만'; return v; };
 
   // 시간대별 차트
-  behaviorCharts['hourly'] = new Chart(document.getElementById('hourly-chart').getContext('2d'), {
+  behaviorCharts['hourly-chart'] = new Chart(document.getElementById('hourly-chart').getContext('2d'), {
     type: 'bar',
     data: {
       labels: h.map(r => r.hour%3===0?`${r.hour}시`:''),
@@ -1719,7 +1742,7 @@ function renderBehavior() {
   });
 
   // 시간대별 구매건수
-  behaviorCharts['hourly-txn'] = new Chart(document.getElementById('hourly-txn-chart').getContext('2d'), {
+  behaviorCharts['hourly-txn-chart'] = new Chart(document.getElementById('hourly-txn-chart').getContext('2d'), {
     type: 'bar',
     data: {
       labels: h.map(r => r.hour%3===0?`${r.hour}시`:''),
@@ -1735,7 +1758,7 @@ function renderBehavior() {
   // 요일별 차트 (GA4: 0=일 → 월화수목금토일 순으로 재정렬)
   const dayOrder = [1,2,3,4,5,6,0]; // 월~일
   const dayLabelsOrdered = dayOrder.map(i=>d[i]?.label+'요일'||'');
-  behaviorCharts['daily'] = new Chart(document.getElementById('daily-chart').getContext('2d'), {
+  behaviorCharts['daily-chart'] = new Chart(document.getElementById('daily-chart').getContext('2d'), {
     type: 'bar',
     data: {
       labels: dayLabelsOrdered,
@@ -1756,7 +1779,7 @@ function renderBehavior() {
   });
 
   // 요일별 구매건수
-  behaviorCharts['daily-txn'] = new Chart(document.getElementById('daily-txn-chart').getContext('2d'), {
+  behaviorCharts['daily-txn-chart'] = new Chart(document.getElementById('daily-txn-chart').getContext('2d'), {
     type: 'bar',
     data: {
       labels: dayLabelsOrdered,
