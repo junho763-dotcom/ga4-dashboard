@@ -728,11 +728,30 @@ const CHANNEL_SUB_MAP = {
   other:{label:'기타',parent:'other',color:'#555'}
 };
 
-function classifyChannel(src, med) {
+function classifyChannel(src, med, landingPage) {
   const s=(src||'').toLowerCase(), m=(med||'').toLowerCase();
+  const lp=(landingPage||'');
+
+  // 공구 제외
   if(m==='gongu'||s.startsWith('@')) return null;
   // 결제 리다이렉트 제외
   if(s.includes('orders.pay.naver')||s.includes('admin.pay.naver')||s.includes('mrc-pay')) return null;
+
+  // (not set) 세분류 - landingPage 패턴으로 판단
+  if(s==='(not set)'||s===''||m==='(not set)') {
+    if(/\/auth\/callback\/kakao|\/login\/social/.test(lp)) return null; // 카카오 로그인 콜백 제외
+    if(/\/payments\//.test(lp)) return null; // 결제 리다이렉트 제외
+    if(/@[a-zA-Z0-9_]+/.test(lp)) return null; // 공구 제외
+    if(/fbclid=/.test(lp)) return 'facebook'; // 페이스북 클릭ID
+    if(/NaPm=/.test(lp)) return 'naver'; // 네이버 napm
+    return 'direct'; // 나머지는 직접유입으로
+  }
+
+  // 카카오 알림톡
+  if(s==='kakaoa'||s==='kakaoalert'||s.includes('kakaoalert')) return 'kakao';
+  // an/an = 카카오 알림톡
+  if(s==='an'&&m==='an') return 'kakao';
+
   if(s.includes('naver')||s==='napm') return 'naver';
   if(s.includes('instagram')||s==='ig') return 'instagram';
   if(s.includes('facebook')||s==='fb') return 'facebook';
@@ -743,10 +762,26 @@ function classifyChannel(src, med) {
   return 'other';
 }
 
-function classifySubChannel(src, med) {
+function classifySubChannel(src, med, landingPage) {
   const s=(src||'').toLowerCase(), m=(med||'').toLowerCase();
+  const lp=(landingPage||'');
+
   if(m==='gongu'||s.startsWith('@')) return null;
   if(s.includes('orders.pay.naver')||s.includes('admin.pay.naver')||s.includes('mrc-pay')) return null;
+
+  // (not set) 세분류
+  if(s==='(not set)'||s===''||m==='(not set)') {
+    if(/\/auth\/callback\/kakao|\/login\/social/.test(lp)) return null;
+    if(/\/payments\//.test(lp)) return null;
+    if(/@[a-zA-Z0-9_]+/.test(lp)) return null;
+    if(/fbclid=/.test(lp)) return 'fb_ad';
+    if(/NaPm=/.test(lp)) return 'naver_brand';
+    return 'direct';
+  }
+
+  // 카카오 알림톡 / an/an
+  if(s==='an'&&m==='an') return 'kakao_other';
+  if(s.includes('kakaoalert')) return 'kakao_other';
 
   // 인스타그램
   if(s==='ig'||s.includes('instagram')) {
@@ -759,15 +794,14 @@ function classifySubChannel(src, med) {
   }
 
   // 네이버 세분류
-  if(s==='napm') return 'naver_brand'; // 성과형/브랜드검색
+  if(s==='napm') return 'naver_brand';
   if(s.includes('naver')) {
-    if(m==='sa') return 'naver_sa'; // 검색광고
-    if(m==='cpc') return 'naver_sa'; // 검색광고
-    if(s==='m.search.naver.com'||s==='search.naver.com') return 'naver_search'; // 모바일/PC 검색
-    if(s.includes('shopping.naver')) return 'naver_shopping'; // 쇼핑
-    if(s.includes('blog.naver')) return 'naver_blog'; // 블로그
-    if(m==='organic') return 'naver_organic'; // 자연유입
-    if(m==='referral') return 'naver_other'; // 기타 referral
+    if(m==='sa') return 'naver_sa';
+    if(m==='cpc') return 'naver_sa';
+    if(s==='m.search.naver.com'||s==='search.naver.com') return 'naver_search';
+    if(s.includes('shopping.naver')) return 'naver_shopping';
+    if(s.includes('blog.naver')) return 'naver_blog';
+    if(m==='organic') return 'naver_organic';
     return 'naver_other';
   }
 
@@ -968,7 +1002,7 @@ async function fetchAll() {
       fetchGA({dateRanges:dr, metrics:[{name:'activeUsers'},{name:'sessions'},{name:'screenPageViewsPerSession'},{name:'averageSessionDuration'},{name:'totalRevenue'},{name:'transactions'}]}),
       fetchGA({dateRanges:dr, dimensions:[{name:'newVsReturning'}], metrics:[{name:'activeUsers'},{name:'eventCount'}], dimensionFilter:{filter:{fieldName:'eventName',stringFilter:{matchType:'EXACT',value:'sign_up'}}}}),
       fetchGA({dateRanges:dr, dimensions:[{name:'pagePath'}], metrics:[{name:'activeUsers'},{name:'averageSessionDuration'},{name:'engagementRate'},{name:'screenPageViews'}], dimensionFilter:{filter:{fieldName:'pagePath',stringFilter:{matchType:'CONTAINS',value:'/kr/products/'}}}, orderBys:[{metric:{metricName:'activeUsers'},desc:true}], limit:300}),
-      fetchGA({dateRanges:dr, dimensions:[{name:'sessionSource'},{name:'sessionMedium'}], metrics:[{name:'activeUsers'},{name:'averageSessionDuration'},{name:'engagementRate'},{name:'screenPageViewsPerSession'}], orderBys:[{metric:{metricName:'activeUsers'},desc:true}], limit:100}),
+      fetchGA({dateRanges:dr, dimensions:[{name:'sessionSource'},{name:'sessionMedium'},{name:'landingPage'}], metrics:[{name:'activeUsers'},{name:'averageSessionDuration'},{name:'engagementRate'},{name:'screenPageViewsPerSession'}], orderBys:[{metric:{metricName:'activeUsers'},desc:true}], limit:200}),
       fetchGA({dateRanges:dr, dimensions:[{name:'eventName'}], metrics:[{name:'eventCount'},{name:'totalUsers'}], dimensionFilter:{filter:{fieldName:'eventName',inListFilter:{values:['view_item','add_to_cart','begin_checkout','purchase','sign_up','first_visit']}}}}),
       fetchGA({dateRanges:dr, dimensions:[{name:'sessionSource'},{name:'sessionMedium'}], metrics:[{name:'eventCount'}], dimensionFilter:{filter:{fieldName:'eventName',stringFilter:{matchType:'EXACT',value:'sign_up'}}}, orderBys:[{metric:{metricName:'eventCount'},desc:true}], limit:20}),
       fetchGA({dateRanges:dr, dimensions:[{name:'sessionSource'},{name:'sessionMedium'}], metrics:[{name:'totalRevenue'}], orderBys:[{metric:{metricName:'totalRevenue'},desc:true}], limit:100}),
@@ -1042,8 +1076,8 @@ async function fetchAll() {
     // 채널 대분류
     const chMap={};
     (channelData.rows||[]).forEach(row=>{
-      const src=row.dimensionValues[0].value, med=row.dimensionValues[1].value;
-      const ch=classifyChannel(src,med); if(!ch) return;
+      const src=row.dimensionValues[0].value, med=row.dimensionValues[1].value, lp=row.dimensionValues[2].value;
+      const ch=classifyChannel(src,med,lp); if(!ch) return;
       const users=parseInt(row.metricValues[0].value||0);
       const dur=parseFloat(row.metricValues[1].value||0);
       const eng=parseFloat(row.metricValues[2].value||0);
@@ -1054,9 +1088,9 @@ async function fetchAll() {
     });
     // 채널 세분류
     (channelData.rows||[]).forEach(row=>{
-      const src=row.dimensionValues[0].value, med=row.dimensionValues[1].value;
-      const ch=classifyChannel(src,med); if(!ch) return;
-      const sub=classifySubChannel(src,med); if(!sub) return;
+      const src=row.dimensionValues[0].value, med=row.dimensionValues[1].value, lp=row.dimensionValues[2].value;
+      const ch=classifyChannel(src,med,lp); if(!ch) return;
+      const sub=classifySubChannel(src,med,lp); if(!sub) return;
       const users=parseInt(row.metricValues[0].value||0);
       const dur=parseFloat(row.metricValues[1].value||0);
       const eng=parseFloat(row.metricValues[2].value||0);
@@ -1065,11 +1099,17 @@ async function fetchAll() {
       chMap[ch].subChannels[sub].duration+=dur; chMap[ch].subChannels[sub].dC++;
       chMap[ch].subChannels[sub].engage+=eng; chMap[ch].subChannels[sub].eC++;
     });
-    // 채널별 매출
+    // 채널별 매출 (landingPage 포함 API로 교체)
+    (channelData.rows||[]).forEach(row=>{
+      const src=row.dimensionValues[0].value, med=row.dimensionValues[1].value, lp=row.dimensionValues[2].value;
+      const ch=classifyChannel(src,med,lp); if(!ch) return;
+      const sub=classifySubChannel(src,med,lp);
+      // 매출은 channelRevenue에서 별도 합산 (아래에서 처리)
+    });
     (channelRevenue.rows||[]).forEach(row=>{
       const src=row.dimensionValues[0].value, med=row.dimensionValues[1].value;
-      const ch=classifyChannel(src,med); if(!ch) return;
-      const sub=classifySubChannel(src,med);
+      const ch=classifyChannel(src,med,''); if(!ch) return;
+      const sub=classifySubChannel(src,med,'');
       const rev=parseFloat(row.metricValues[0].value||0);
       if(chMap[ch]) {
         chMap[ch].revenue+=rev;
