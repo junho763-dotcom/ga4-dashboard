@@ -1140,17 +1140,12 @@ async function fetchAnalysisData() {
   // 렌더링
   renderFunnel();
   renderMember();
-  // 차트 destroy 및 canvas 재생성
+  // 차트 완전 초기화 - Chart.js 레지스트리 기준으로 destroy
   ['hourly-chart','hourly-txn-chart','daily-chart','daily-txn-chart'].forEach(id=>{
-    if(behaviorCharts[id.replace('-chart','').replace('-txn','-txn')]) {
-      try { behaviorCharts[id]?.destroy(); } catch(e){}
-    }
-    const canvas = document.getElementById(id);
+    const canvas=document.getElementById(id);
     if(canvas) {
-      const parent = canvas.parentNode;
-      const newCanvas = document.createElement('canvas');
-      newCanvas.id = id;
-      parent.replaceChild(newCanvas, canvas);
+      const existing=Chart.getChart(canvas);
+      if(existing) { try{existing.destroy();}catch(e){} }
     }
   });
   behaviorCharts={};
@@ -1159,11 +1154,13 @@ async function fetchAnalysisData() {
 }
 
 async function fetchAll() {
-  // 차트 초기화
+  // 차트 초기화 - Chart.js 레지스트리 기준으로 destroy
   ['hourly-chart','hourly-txn-chart','daily-chart','daily-txn-chart'].forEach(id=>{
-    if(behaviorCharts[id]) { try{behaviorCharts[id].destroy();}catch(e){} delete behaviorCharts[id]; }
     const canvas=document.getElementById(id);
-    if(canvas) { const p=canvas.parentNode; const nc=document.createElement('canvas'); nc.id=id; p.replaceChild(nc,canvas); }
+    if(canvas) {
+      const existing=Chart.getChart(canvas);
+      if(existing) { try{existing.destroy();}catch(e){} }
+    }
   });
   behaviorCharts={};
   try {
@@ -1713,14 +1710,6 @@ function renderBehavior() {
   if(el('bd-low-day')) el('bd-low-day').textContent = lowDay?.label+'요일';
   if(el('bd-peak-users')) el('bd-peak-users').textContent = peakUsersDay?.label+'요일';
   if(el('bd-weekend-ratio')) el('bd-weekend-ratio').textContent = weekendRatio+'%';
-
-  // 기존 차트 destroy 및 canvas 재생성
-  ['hourly-chart','hourly-txn-chart','daily-chart','daily-txn-chart'].forEach(id=>{
-    const key=id;
-    if(behaviorCharts[key]) { try{behaviorCharts[key].destroy();}catch(e){} delete behaviorCharts[key]; }
-    const canvas=document.getElementById(id);
-    if(canvas) { const p=canvas.parentNode; const nc=document.createElement('canvas'); nc.id=id; p.replaceChild(nc,canvas); }
-  });
 
   const isDark = true;
   const textColor = '#aaa';
