@@ -1083,8 +1083,17 @@ function setMode(mode, tab, btn) {
     else if(tab==='customer') { renderCustomer(); }
     else if(tab==='behavior') {
       ['hourly-chart','hourly-txn-chart','daily-chart','daily-txn-chart'].forEach(id=>{
-        const canvas=document.getElementById(id);
-        if(canvas){ const existing=Chart.getChart(canvas); if(existing){try{existing.destroy();}catch(e){}} }
+        try {
+          const canvas=document.getElementById(id);
+          if(canvas) {
+            if(typeof Chart!=='undefined') { const ex=Chart.getChart(canvas); if(ex) ex.destroy(); }
+            const p=canvas.parentNode;
+            const nc=document.createElement('canvas');
+            nc.id=id; nc.style.cssText=canvas.style.cssText;
+            p.replaceChild(nc,canvas);
+          }
+        } catch(e){}
+        delete behaviorCharts[id];
       });
       behaviorCharts={};
       renderBehavior();
@@ -1201,13 +1210,24 @@ async function fetchAnalysisData() {
 }
 
 async function fetchAll() {
-  // 차트 초기화 - Chart.js 레지스트리 기준으로 destroy
+  // 차트 완전 초기화 - canvas 교체 방식
   ['hourly-chart','hourly-txn-chart','daily-chart','daily-txn-chart'].forEach(id=>{
-    const canvas=document.getElementById(id);
-    if(canvas) {
-      const existing=Chart.getChart(canvas);
-      if(existing) { try{existing.destroy();}catch(e){} }
-    }
+    try {
+      if(typeof Chart !== 'undefined') {
+        const canvas=document.getElementById(id);
+        if(canvas) {
+          const existing=Chart.getChart(canvas);
+          if(existing) existing.destroy();
+          // canvas 교체로 완전 초기화
+          const p=canvas.parentNode;
+          const nc=document.createElement('canvas');
+          nc.id=id; nc.style.cssText=canvas.style.cssText;
+          p.replaceChild(nc,canvas);
+        }
+      }
+      if(behaviorCharts[id]) { try{behaviorCharts[id].destroy();}catch(e){} }
+    } catch(e){}
+    delete behaviorCharts[id];
   });
   behaviorCharts={};
   try {
