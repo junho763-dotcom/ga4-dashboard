@@ -1159,6 +1159,13 @@ async function fetchAnalysisData() {
 }
 
 async function fetchAll() {
+  // 차트 초기화
+  ['hourly-chart','hourly-txn-chart','daily-chart','daily-txn-chart'].forEach(id=>{
+    if(behaviorCharts[id]) { try{behaviorCharts[id].destroy();}catch(e){} delete behaviorCharts[id]; }
+    const canvas=document.getElementById(id);
+    if(canvas) { const p=canvas.parentNode; const nc=document.createElement('canvas'); nc.id=id; p.replaceChild(nc,canvas); }
+  });
+  behaviorCharts={};
   try {
     const dr=[{startDate, endDate}];
     const [ov, newVsReturn, productPages, channelData, eventData, signupByChannel, channelRevenue, gonguRevenue, hourlyData, dailyData, customerData] = await Promise.all([
