@@ -1064,13 +1064,18 @@ async function setMode(mode, tab, btn) {
     state.signupByChannel=state.totalSignupByChannel||state.signupByChannel;
   }
 
-  // 차트 초기화 후 렌더링
-  ['hourly-chart','hourly-txn-chart','daily-chart','daily-txn-chart'].forEach(id=>{
-    const canvas=document.getElementById(id);
-    if(canvas){ const existing=Chart.getChart(canvas); if(existing){try{existing.destroy();}catch(e){}} }
-  });
-  behaviorCharts={};
-  renderFunnel(); renderMember(); renderBehavior(); renderCustomer();
+  // 현재 탭에 해당하는 것만 렌더링
+  if(tab==='funnel') { renderFunnel(); return; }
+  if(tab==='member') { renderMember(); return; }
+  if(tab==='customer') { renderCustomer(); return; }
+  if(tab==='behavior') {
+    ['hourly-chart','hourly-txn-chart','daily-chart','daily-txn-chart'].forEach(id=>{
+      const canvas=document.getElementById(id);
+      if(canvas){ const existing=Chart.getChart(canvas); if(existing){try{existing.destroy();}catch(e){}} }
+    });
+    behaviorCharts={};
+    renderBehavior();
+  }
 }
 
 async function fetchAnalysisData() {
