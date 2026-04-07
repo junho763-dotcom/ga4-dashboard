@@ -1040,11 +1040,37 @@ const GONGU_EXCLUDE = {
 async function setMode(mode, tab, btn) {
   if(currentMode === mode) return;
   currentMode = mode;
-  // 해당 탭 내 토글 버튼 상태 업데이트
   btn.closest('.mode-toggle').querySelectorAll('.mode-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
-  // 분석 탭 데이터만 재조회
-  if(accessToken) await fetchAnalysisData();
+
+  if(!accessToken) return;
+
+  // 모드에 따라 state 전환 (API 호출 없이 즉시)
+  if(mode==='own') {
+    state.funnel=state.ownFunnel||state.funnel;
+    state.signup=state.ownSignup||state.signup;
+    state.newVsReturn=state.ownNewVsReturn||state.newVsReturn;
+    state.hourly=state.ownHourly||state.hourly;
+    state.daily=state.ownDaily||state.daily;
+    state.customer=state.ownCustomer||state.customer;
+    state.signupByChannel=state.ownSignupByChannel||state.signupByChannel;
+  } else {
+    state.funnel=state.totalFunnel||state.funnel;
+    state.signup=state.totalSignup||state.signup;
+    state.newVsReturn=state.totalNewVsReturn||state.newVsReturn;
+    state.hourly=state.totalHourly||state.hourly;
+    state.daily=state.totalDaily||state.daily;
+    state.customer=state.totalCustomer||state.customer;
+    state.signupByChannel=state.totalSignupByChannel||state.signupByChannel;
+  }
+
+  // 차트 초기화 후 렌더링
+  ['hourly-chart','hourly-txn-chart','daily-chart','daily-txn-chart'].forEach(id=>{
+    const canvas=document.getElementById(id);
+    if(canvas){ const existing=Chart.getChart(canvas); if(existing){try{existing.destroy();}catch(e){}} }
+  });
+  behaviorCharts={};
+  renderFunnel(); renderMember(); renderBehavior(); renderCustomer();
 }
 
 async function fetchAnalysisData() {
@@ -1341,6 +1367,64 @@ async function fetchAll() {
       custMap[key].transactions += parseInt(row.metricValues[2].value||0);
     });
     state.customer = custMap;
+
+    // 자사몰 전용 데이터 (gongu 제외) 미리 받아두기
+    const ownFilter = {
+      notExpression: { filter:{ fieldName:'sessionMedium', stringFilter:{ matchType:'EXACT', value:'gongu' } } }
+    };
+    const addOwn = (body) => {
+      if(body.dimensionFilter) return {...body, dimensionFilter:{andGroup:{expressions:[body.dimensionFilter, ownFilter]}}};
+      return {...body, dimensionFilter: ownFilter};
+    };
+    const [ownEventData, ownSignupByChannel, ownHourlyData, ownDailyData, ownCustomerData, ownNewVsReturn] = await Promise.all([
+      fetchGA(addOwn({dateRanges:dr, dimensions:[{name:'eventName'}], metrics:[{name:'eventCount'},{name:'totalUsers'}], dimensionFilter:{filter:{fieldName:'eventName',inListFilter:{values:['view_item','add_to_cart','begin_checkout','purchase','sign_up','first_visit']}}}})),
+      fetchGA(addOwn({dateRanges:dr, dimensions:[{name:'sessionSource'},{name:'sessionMedium'}], metrics:[{name:'eventCount'}], dimensionFilter:{filter:{fieldName:'eventName',stringFilter:{matchType:'EXACT',value:'sign_up'}}}, orderBys:[{metric:{metricName:'eventCount'},desc:true}], limit:20})),
+      fetchGA(addOwn({dateRanges:dr, dimensions:[{name:'hour'}], metrics:[{name:'activeUsers'},{name:'totalRevenue'},{name:'transactions'}], orderBys:[{dimension:{dimensionName:'hour'}}], limit:24})),
+      fetchGA(addOwn({dateRanges:dr, dimensions:[{name:'dayOfWeek'}], metrics:[{name:'activeUsers'},{name:'totalRevenue'},{name:'transactions'}], orderBys:[{dimension:{dimensionName:'dayOfWeek'}}], limit:7})),
+      fetchGA(addOwn({dateRanges:dr, dimensions:[{name:'newVsReturning'}], metrics:[{name:'activeUsers'},{name:'totalRevenue'},{name:'transactions'}]})),
+      fetchGA(addOwn({dateRanges:dr, dimensions:[{name:'newVsReturning'}], metrics:[{name:'activeUsers'},{name:'eventCount'}], dimensionFilter:{filter:{fieldName:'eventName',stringFilter:{matchType:'EXACT',value:'sign_up'}}}}))
+    ]);
+
+    // 자사몰 데이터 파싱 후 저장
+    const ownEvtMap={};
+    (ownEventData.rows||[]).forEach(row=>{ ownEvtMap[row.dimensionValues[0].value]={count:parseInt(row.metricValues[0].value||0),users:parseInt(row.metricValues[1].value||0)}; });
+    state.ownFunnel={
+      viewItem:ownEvtMap['view_item']?.count||0, addCart:ownEvtMap['add_to_cart']?.count||0,
+      beginCheckout:ownEvtMap['begin_checkout']?.count||0, purchase:ownEvtMap['purchase']?.count||0,
+      purchaseUsers:ownEvtMap['purchase']?.users||0, firstVisit:ownEvtMap['first_visit']?.count||0
+    };
+    const ownNVR={new:0,returning:0};
+    (ownNewVsReturn.rows||[]).forEach(row=>{ const k=row.dimensionValues[0].value.toLowerCase(); if(k.includes('new')) ownNVR.new=parseInt(row.metricValues[0].value||0); else ownNVR.returning=parseInt(row.metricValues[0].value||0); });
+    state.ownSignup={ total:ownEvtMap['sign_up']?.count||0, firstVisit:ownEvtMap['first_visit']?.count||0, newUsers:ownNVR.new };
+    state.ownNewVsReturn=ownNVR;
+    const ownHourlyMap=Array.from({length:24},(_,i)=>({hour:i,users:0,revenue:0,transactions:0}));
+    (ownHourlyData.rows||[]).forEach(row=>{ const h=parseInt(row.dimensionValues[0].value); if(h>=0&&h<24){ ownHourlyMap[h].users=parseInt(row.metricValues[0].value||0); ownHourlyMap[h].revenue=parseFloat(row.metricValues[1].value||0); ownHourlyMap[h].transactions=parseInt(row.metricValues[2].value||0); } });
+    state.ownHourly=ownHourlyMap;
+    const ownDayLabels=['일','월','화','수','목','금','토'];
+    const ownDailyMap=Array.from({length:7},(_,i)=>({day:i,label:ownDayLabels[i],users:0,revenue:0,transactions:0}));
+    (ownDailyData.rows||[]).forEach(row=>{ const d=parseInt(row.dimensionValues[0].value); if(d>=0&&d<7){ ownDailyMap[d].users=parseInt(row.metricValues[0].value||0); ownDailyMap[d].revenue=parseFloat(row.metricValues[1].value||0); ownDailyMap[d].transactions=parseInt(row.metricValues[2].value||0); } });
+    state.ownDaily=ownDailyMap;
+    const ownCustMap={new:{users:0,revenue:0,transactions:0},returning:{users:0,revenue:0,transactions:0}};
+    (ownCustomerData.rows||[]).forEach(row=>{ const k=row.dimensionValues[0].value.toLowerCase().includes('new')?'new':'returning'; ownCustMap[k].users+=parseInt(row.metricValues[0].value||0); ownCustMap[k].revenue+=parseFloat(row.metricValues[1].value||0); ownCustMap[k].transactions+=parseInt(row.metricValues[2].value||0); });
+    state.ownCustomer=ownCustMap;
+    state.ownSignupByChannel=[];
+    (ownSignupByChannel.rows||[]).forEach(row=>{ const src=row.dimensionValues[0].value,med=row.dimensionValues[1].value; const ch=classifyChannel(src,med,''); if(!ch) return; const count=parseInt(row.metricValues[0].value||0); const ex=state.ownSignupByChannel.find(s=>s.channel===ch); if(ex) ex.count+=count; else state.ownSignupByChannel.push({channel:ch,count}); });
+    state.ownSignupByChannel.sort((a,b)=>b.count-a.count);
+
+    // TOTAL 데이터 백업 저장
+    state.totalFunnel={...state.funnel};
+    state.totalSignup={...state.signup};
+    state.totalNewVsReturn={...state.newVsReturn};
+    state.totalHourly=[...state.hourly];
+    state.totalDaily=[...state.daily];
+    state.totalCustomer={new:{...state.customer?.new}, returning:{...state.customer?.returning}};
+    state.totalSignupByChannel=[...state.signupByChannel];
+
+    // 모드 초기화 (날짜 바꾸면 항상 TOTAL로)
+    currentMode='total';
+    document.querySelectorAll('.mode-btn').forEach((b,i)=>{
+      if(i%2===0) b.classList.add('active'); else b.classList.remove('active');
+    });
 
     renderAll();
   } catch(e) {
