@@ -739,12 +739,13 @@ function classifyChannel(src, med, landingPage) {
 
   // (not set) 세분류 - landingPage 패턴으로 판단
   if(s==='(not set)'||s===''||m==='(not set)') {
-    if(!lp) return 'direct';
+    if(!lp) return 'direct'; // 빈페이지 → 직접유입
     if(/@[a-zA-Z0-9_]+/.test(lp)) return null; // 공구 제외
     if(/fbclid=/.test(lp)) return 'facebook'; // 페이스북
     if(/NaPm=/.test(lp)) return 'naver'; // 네이버 napm
-    if(/\/kr\/products\//.test(lp)) return 'kakao'; // 상품 페이지 → 카카오 알림톡
-    return 'direct'; // 로그인/가입/결제/카카오콜백/기타 → 직접유입
+    if(/\/auth\/callback\/kakao|\/login\/social|\/login|\/register|\/payments\/|\/cart/.test(lp)) return 'kakao';
+    if(/\/kr\/products\//.test(lp)) return 'kakao'; // 상품페이지
+    return 'direct'; // 나머지 → 직접유입
   }
 
   // 카카오 알림톡
@@ -775,6 +776,7 @@ function classifySubChannel(src, med, landingPage) {
     if(/@[a-zA-Z0-9_]+/.test(lp)) return null;
     if(/fbclid=/.test(lp)) return 'fb_ad';
     if(/NaPm=/.test(lp)) return 'naver_brand';
+    if(/\/auth\/callback\/kakao|\/login\/social|\/login|\/register|\/payments\/|\/cart/.test(lp)) return 'kakao_other';
     if(/\/kr\/products\//.test(lp)) return 'kakao_other';
     return 'direct';
   }
@@ -1005,7 +1007,7 @@ async function fetchAll() {
       fetchGA({dateRanges:dr, dimensions:[{name:'sessionSource'},{name:'sessionMedium'},{name:'landingPage'}], metrics:[{name:'activeUsers'},{name:'averageSessionDuration'},{name:'engagementRate'},{name:'screenPageViewsPerSession'}], orderBys:[{metric:{metricName:'activeUsers'},desc:true}], limit:200}),
       fetchGA({dateRanges:dr, dimensions:[{name:'eventName'}], metrics:[{name:'eventCount'},{name:'totalUsers'}], dimensionFilter:{filter:{fieldName:'eventName',inListFilter:{values:['view_item','add_to_cart','begin_checkout','purchase','sign_up','first_visit']}}}}),
       fetchGA({dateRanges:dr, dimensions:[{name:'sessionSource'},{name:'sessionMedium'}], metrics:[{name:'eventCount'}], dimensionFilter:{filter:{fieldName:'eventName',stringFilter:{matchType:'EXACT',value:'sign_up'}}}, orderBys:[{metric:{metricName:'eventCount'},desc:true}], limit:20}),
-      fetchGA({dateRanges:dr, dimensions:[{name:'sessionSource'},{name:'sessionMedium'}], metrics:[{name:'totalRevenue'}], orderBys:[{metric:{metricName:'totalRevenue'},desc:true}], limit:100}),
+      fetchGA({dateRanges:dr, dimensions:[{name:'sessionSource'},{name:'sessionMedium'},{name:'landingPage'}], metrics:[{name:'totalRevenue'}], orderBys:[{metric:{metricName:'totalRevenue'},desc:true}], limit:200}),
       fetchGA({dateRanges:dr, metrics:[{name:'totalRevenue'}], dimensionFilter:{filter:{fieldName:'sessionMedium',stringFilter:{matchType:'EXACT',value:'gongu'}}}}),
       fetchGA({dateRanges:dr, dimensions:[{name:'hour'}], metrics:[{name:'activeUsers'},{name:'totalRevenue'},{name:'transactions'}], orderBys:[{dimension:{dimensionName:'hour'}}], limit:24}),
       fetchGA({dateRanges:dr, dimensions:[{name:'dayOfWeek'}], metrics:[{name:'activeUsers'},{name:'totalRevenue'},{name:'transactions'}], orderBys:[{dimension:{dimensionName:'dayOfWeek'}}], limit:7}),
@@ -1107,9 +1109,9 @@ async function fetchAll() {
       // 매출은 channelRevenue에서 별도 합산 (아래에서 처리)
     });
     (channelRevenue.rows||[]).forEach(row=>{
-      const src=row.dimensionValues[0].value, med=row.dimensionValues[1].value;
-      const ch=classifyChannel(src,med,''); if(!ch) return;
-      const sub=classifySubChannel(src,med,'');
+      const src=row.dimensionValues[0].value, med=row.dimensionValues[1].value, lp=row.dimensionValues[2].value;
+      const ch=classifyChannel(src,med,lp); if(!ch) return;
+      const sub=classifySubChannel(src,med,lp);
       const rev=parseFloat(row.metricValues[0].value||0);
       if(chMap[ch]) {
         chMap[ch].revenue+=rev;
@@ -1334,7 +1336,7 @@ function renderChannel() {
           const maxRev=Math.max(...r.subChannels.map(s=>s.revenue),1);
           const pct=sub.revenue>0?Math.round((sub.revenue/maxRev)*100):Math.round((sub.users/(r.users||1))*30);
           return `<div class="hbar-row" style="margin-bottom:6px;">
-            <span class="hbar-label" ${si.label}</span>${si.label}</span>
+            <span class="hbar-label" style="width:110px;font-size:11px;color:#ccc;">${si.label}</span>
             <div class="hbar-track" style="height:5px;"><div class="hbar-fill" style="width:${pct}%;background:${si.color}"></div></div>
             <span class="hbar-val" style="font-size:11px;color:${sub.revenue>0?'var(--amber)':'#999'};width:100px;">${sub.revenue>0?'₩'+fmtMoney(sub.revenue):fmtNum(sub.users)+'명'}</span>
           </div>`;
