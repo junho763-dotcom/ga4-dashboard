@@ -1045,17 +1045,22 @@ function setMode(mode, tab, btn) {
 
   if(!accessToken) return;
 
-  // 로딩 표시
+  // 기존 로딩 제거
+  const oldLoading=document.getElementById('mode-loading');
+  if(oldLoading && oldLoading.parentNode) oldLoading.parentNode.removeChild(oldLoading);
+
+  // 로딩 표시 생성
   const views={funnel:'view-funnel',member:'view-member',behavior:'view-behavior',customer:'view-customer'};
   const viewEl=document.getElementById(views[tab]);
-  let loadingEl=document.getElementById('mode-loading');
-  if(!loadingEl){
-    loadingEl=document.createElement('div');
-    loadingEl.id='mode-loading';
-    loadingEl.style.cssText='text-align:center;padding:12px;font-size:12px;color:#888;font-family:var(--mono);display:flex;align-items:center;justify-content:center;gap:8px;';
-    loadingEl.innerHTML='<div style="width:14px;height:14px;border:1.5px solid #333;border-top-color:var(--accent);border-radius:50%;animation:spin 0.7s linear infinite;"></div> 데이터 불러오는 중...';
+  const loadingEl=document.createElement('div');
+  loadingEl.id='mode-loading';
+  loadingEl.style.cssText='text-align:center;padding:16px 0;font-size:13px;color:#aaa;font-family:var(--font);display:flex;align-items:center;justify-content:center;gap:10px;';
+  loadingEl.innerHTML='<div style="width:16px;height:16px;border:2px solid #333;border-top-color:var(--accent);border-radius:50%;animation:spin 0.7s linear infinite;flex-shrink:0;"></div><span>잠시만 기다려주세요...</span>';
+  if(viewEl) {
+    const toggle=viewEl.querySelector('.mode-toggle');
+    if(toggle) toggle.after(loadingEl);
+    else viewEl.prepend(loadingEl);
   }
-  if(viewEl) viewEl.prepend(loadingEl);
 
   // state 전환
   if(mode==='own') {
@@ -1076,11 +1081,11 @@ function setMode(mode, tab, btn) {
     state.signupByChannel=state.totalSignupByChannel||state.signupByChannel;
   }
 
-  // 다음 프레임에서 렌더링
-  requestAnimationFrame(() => {
-    if(tab==='funnel') { renderFunnel(); }
-    else if(tab==='member') { renderMember(); }
-    else if(tab==='customer') { renderCustomer(); }
+  // 로딩 표시가 먼저 화면에 그려진 후 렌더링
+  setTimeout(() => {
+    if(tab==='funnel') renderFunnel();
+    else if(tab==='member') renderMember();
+    else if(tab==='customer') renderCustomer();
     else if(tab==='behavior') {
       ['hourly-chart','hourly-txn-chart','daily-chart','daily-txn-chart'].forEach(id=>{
         try {
@@ -1098,9 +1103,8 @@ function setMode(mode, tab, btn) {
       behaviorCharts={};
       renderBehavior();
     }
-    // 로딩 표시 제거
     if(loadingEl && loadingEl.parentNode) loadingEl.parentNode.removeChild(loadingEl);
-  });
+  }, 30);
 }
 
 async function fetchAnalysisData() {
