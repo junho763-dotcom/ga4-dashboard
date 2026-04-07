@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -169,7 +168,13 @@
   .insight-box { background: rgba(79,142,247,0.06); border: 1px solid rgba(79,142,247,0.2); border-radius: 10px; padding: 1rem 1.25rem; margin-bottom: 1rem; font-size: 13px; color: var(--text2); line-height: 1.7; }
   .insight-box strong { color: var(--accent); font-weight: 500; }
 
-  .loading-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 3rem; gap: 12px; color: var(--text3); font-size: 13px; font-family: var(--mono); }
+  /* TOTAL / 자사몰 토글 */
+  .mode-toggle { display:flex; gap:4px; background:var(--bg2); border:1px solid var(--border); border-radius:8px; padding:4px; width:fit-content; margin-bottom:1.5rem; }
+  .mode-btn { padding:6px 18px; border-radius:5px; font-size:12px; font-weight:500; border:none; cursor:pointer; background:none; color:#bbb; font-family:var(--font); transition:all 0.15s; }
+  .mode-btn.active { background:var(--bg3); color:var(--text); border:1px solid var(--border2); }
+  .mode-badge { display:inline-block; font-size:10px; padding:2px 7px; border-radius:10px; margin-left:6px; font-weight:500; }
+  .mode-badge-total { background:rgba(244,114,182,0.15); color:var(--influencer); }
+  .mode-badge-own { background:rgba(79,142,247,0.15); color:var(--accent); }
   .spinner { width: 20px; height: 20px; border: 1.5px solid var(--border2); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
 
@@ -186,8 +191,10 @@
   .scroll-hint.hidden { opacity: 0; }
 
   /* 캘린더 날짜 선택 팝업 */
-  .date-picker-btn { display: flex; align-items: center; gap: 6px; padding: 6px 12px; background: var(--bg2); border: 1px solid var(--border2); border-radius: 8px; font-size: 12px; color: #ccc; cursor: pointer; font-family: var(--mono); white-space: nowrap; }
-  .date-picker-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .date-picker-btn { display: flex; align-items: center; gap: 8px; padding: 7px 14px; background: var(--bg2); border: 1px solid var(--border2); border-radius: 8px; font-size: 12px; color: #ccc; cursor: pointer; font-family: var(--font); white-space: nowrap; transition: all 0.15s; }
+  .date-picker-btn:hover { border-color: var(--accent); color: var(--accent); background: rgba(79,142,247,0.06); }
+  .date-picker-btn .cal-icon { font-size: 15px; flex-shrink: 0; }
+  .date-picker-btn .cal-arrow { font-size: 10px; color: #666; margin-left: 2px; }
   .date-picker-popup { display: none; position: absolute; top: calc(100% + 8px); right: 0; background: #1a1a1a; border: 1px solid var(--border2); border-radius: 12px; padding: 1rem; z-index: 200; min-width: 280px; box-shadow: 0 8px 32px rgba(0,0,0,0.5); }
   .date-picker-popup.open { display: block; }
   .date-picker-row { display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; }
@@ -323,8 +330,9 @@
         <!-- 캘린더 날짜 선택 -->
         <div style="position:relative;">
           <button class="date-picker-btn" id="date-picker-btn" onclick="toggleDatePicker()">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            <span class="cal-icon">📅</span>
             <span id="date-picker-label">날짜 선택</span>
+            <span class="cal-arrow">▼</span>
           </button>
           <div class="date-picker-popup" id="date-picker-popup">
             <div class="date-picker-presets">
@@ -500,6 +508,10 @@
 
       <!-- 퍼널 -->
       <div id="view-funnel" style="display:none;">
+        <div class="mode-toggle">
+          <button class="mode-btn active" onclick="setMode('total','funnel',this)">TOTAL <span class="mode-badge mode-badge-total">공동구매 포함</span></button>
+          <button class="mode-btn" onclick="setMode('own','funnel',this)">자사몰 <span class="mode-badge mode-badge-own">공동구매 미포함</span></button>
+        </div>
         <div class="insight-box" id="funnel-insight"></div>
         <div class="chart-card" style="margin-bottom:1.5rem;">
           <div class="chart-title">구매 여정 퍼널</div>
@@ -532,6 +544,10 @@
 
       <!-- 회원가입 -->
       <div id="view-member" style="display:none;">
+        <div class="mode-toggle">
+          <button class="mode-btn active" onclick="setMode('total','member',this)">TOTAL <span class="mode-badge mode-badge-total">공동구매 포함</span></button>
+          <button class="mode-btn" onclick="setMode('own','member',this)">자사몰 <span class="mode-badge mode-badge-own">공동구매 미포함</span></button>
+        </div>
         <div class="insight-box" id="member-insight"></div>
         <div class="metrics-grid">
           <div class="metric-card"><div class="metric-label">전체 방문자</div><div class="metric-value" id="mem-new">—</div><div class="metric-desc">이 기간 전체 방문자 수</div></div>
@@ -569,6 +585,10 @@
 
       <!-- 행동 분석 -->
       <div id="view-behavior" style="display:none;">
+        <div class="mode-toggle">
+          <button class="mode-btn active" onclick="setMode('total','behavior',this)">TOTAL <span class="mode-badge mode-badge-total">공동구매 포함</span></button>
+          <button class="mode-btn" onclick="setMode('own','behavior',this)">자사몰 <span class="mode-badge mode-badge-own">공동구매 미포함</span></button>
+        </div>
         <!-- 탭 전환 -->
         <div style="display:flex;gap:4px;margin-bottom:1.5rem;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:4px;width:fit-content;">
           <button id="btab-hourly" onclick="switchBehaviorTab('hourly')" style="padding:6px 18px;border-radius:5px;font-size:13px;font-weight:500;border:none;cursor:pointer;background:var(--bg3);color:var(--text);border:1px solid var(--border2);font-family:var(--font);">시간대별</button>
@@ -618,6 +638,10 @@
 
       <!-- 고객 분석 -->
       <div id="view-customer" style="display:none;">
+        <div class="mode-toggle">
+          <button class="mode-btn active" onclick="setMode('total','customer',this)">TOTAL <span class="mode-badge mode-badge-total">공동구매 포함</span></button>
+          <button class="mode-btn" onclick="setMode('own','customer',this)">자사몰 <span class="mode-badge mode-badge-own">공동구매 미포함</span></button>
+        </div>
         <div class="metrics-grid" style="margin-bottom:1.5rem;">
           <div class="metric-card highlight">
             <div class="metric-label" style="color:#fb923c;">재구매자 비율</div>
@@ -833,6 +857,7 @@ function classifyProduct(name) {
 
 let tokenClient, accessToken;
 let startDate='7daysAgo', endDate='today';
+let currentMode='total'; // 'total' | 'own'
 let state={products:[],influencers:[],channels:[],funnel:{},overview:{},signup:{}};
 const sortState={};
 
@@ -997,6 +1022,121 @@ const fmtPct=n=>(parseFloat(n||0)*100).toFixed(1)+'%';
 const fmtTime=s=>{const sec=Math.round(parseFloat(s||0));const m=Math.floor(sec/60);return m>0?`${m}분 ${sec%60}초`:`${sec}초`;};
 const fmtMoney=n=>Math.round(parseFloat(n||0)).toLocaleString('ko-KR')+'원';
 const fmtMoneyShort=n=>{const v=Math.round(parseFloat(n||0));if(v>=100000000)return (v/100000000).toFixed(1)+'억';if(v>=10000)return Math.round(v/10000).toLocaleString()+'만';return v.toLocaleString()+'원';};
+
+// gongu 제외 필터
+const GONGU_EXCLUDE = {
+  notExpression: {
+    filter: { fieldName:'sessionMedium', stringFilter:{ matchType:'EXACT', value:'gongu' } }
+  }
+};
+
+async function setMode(mode, tab, btn) {
+  if(currentMode === mode) return;
+  currentMode = mode;
+  // 해당 탭 내 토글 버튼 상태 업데이트
+  btn.closest('.mode-toggle').querySelectorAll('.mode-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  // 분석 탭 데이터만 재조회
+  if(accessToken) await fetchAnalysisData();
+}
+
+async function fetchAnalysisData() {
+  const dr=[{startDate, endDate}];
+  const filter = currentMode==='own' ? GONGU_EXCLUDE : null;
+
+  const addFilter = (body) => {
+    if(!filter) return body;
+    if(body.dimensionFilter) {
+      return {...body, dimensionFilter:{ andGroup:{ expressions:[body.dimensionFilter, filter] } }};
+    }
+    return {...body, dimensionFilter: filter};
+  };
+
+  const [eventData, signupByChannel, hourlyData, dailyData, customerData, newVsReturn] = await Promise.all([
+    fetchGA(addFilter({dateRanges:dr, dimensions:[{name:'eventName'}], metrics:[{name:'eventCount'},{name:'totalUsers'}], dimensionFilter:{filter:{fieldName:'eventName',inListFilter:{values:['view_item','add_to_cart','begin_checkout','purchase','sign_up','first_visit']}}}})),
+    fetchGA(addFilter({dateRanges:dr, dimensions:[{name:'sessionSource'},{name:'sessionMedium'}], metrics:[{name:'eventCount'}], dimensionFilter:{filter:{fieldName:'eventName',stringFilter:{matchType:'EXACT',value:'sign_up'}}}, orderBys:[{metric:{metricName:'eventCount'},desc:true}], limit:20})),
+    fetchGA(addFilter({dateRanges:dr, dimensions:[{name:'hour'}], metrics:[{name:'activeUsers'},{name:'totalRevenue'},{name:'transactions'}], orderBys:[{dimension:{dimensionName:'hour'}}], limit:24})),
+    fetchGA(addFilter({dateRanges:dr, dimensions:[{name:'dayOfWeek'}], metrics:[{name:'activeUsers'},{name:'totalRevenue'},{name:'transactions'}], orderBys:[{dimension:{dimensionName:'dayOfWeek'}}], limit:7})),
+    fetchGA(addFilter({dateRanges:dr, dimensions:[{name:'newVsReturning'}], metrics:[{name:'activeUsers'},{name:'totalRevenue'},{name:'transactions'}]})),
+    fetchGA(addFilter({dateRanges:dr, dimensions:[{name:'newVsReturning'}], metrics:[{name:'activeUsers'},{name:'eventCount'}], dimensionFilter:{filter:{fieldName:'eventName',stringFilter:{matchType:'EXACT',value:'sign_up'}}}}))
+  ]);
+
+  // 이벤트 데이터
+  const evtMap={};
+  (eventData.rows||[]).forEach(row=>{ evtMap[row.dimensionValues[0].value]={count:parseInt(row.metricValues[0].value||0),users:parseInt(row.metricValues[1].value||0)}; });
+  state.funnel={
+    viewItem:evtMap['view_item']?.count||0,
+    addCart:evtMap['add_to_cart']?.count||0,
+    beginCheckout:evtMap['begin_checkout']?.count||0,
+    purchase:evtMap['purchase']?.count||0,
+    purchaseUsers:evtMap['purchase']?.users||0,
+    firstVisit:evtMap['first_visit']?.count||0
+  };
+  state.signup={ total:evtMap['sign_up']?.count||0, firstVisit:evtMap['first_visit']?.count||0, newUsers:state.newVsReturn?.new||0 };
+
+  // 신규 vs 재방문 (모드별)
+  state.newVsReturn={new:0,returning:0};
+  (newVsReturn.rows||[]).forEach(row=>{
+    const key=row.dimensionValues[0].value.toLowerCase();
+    if(key.includes('new')) state.newVsReturn.new=parseInt(row.metricValues[0].value||0);
+    else state.newVsReturn.returning=parseInt(row.metricValues[0].value||0);
+  });
+  state.signup.newUsers=state.newVsReturn.new;
+
+  // 시간대별
+  const hourlyMap=Array.from({length:24},(_,i)=>({hour:i,users:0,revenue:0,transactions:0}));
+  (hourlyData.rows||[]).forEach(row=>{
+    const h=parseInt(row.dimensionValues[0].value);
+    if(h>=0&&h<24){
+      hourlyMap[h].users=parseInt(row.metricValues[0].value||0);
+      hourlyMap[h].revenue=parseFloat(row.metricValues[1].value||0);
+      hourlyMap[h].transactions=parseInt(row.metricValues[2].value||0);
+    }
+  });
+  state.hourly=hourlyMap;
+
+  // 요일별
+  const dayLabels=['일','월','화','수','목','금','토'];
+  const dailyMap=Array.from({length:7},(_,i)=>({day:i,label:dayLabels[i],users:0,revenue:0,transactions:0}));
+  (dailyData.rows||[]).forEach(row=>{
+    const d=parseInt(row.dimensionValues[0].value);
+    if(d>=0&&d<7){
+      dailyMap[d].users=parseInt(row.metricValues[0].value||0);
+      dailyMap[d].revenue=parseFloat(row.metricValues[1].value||0);
+      dailyMap[d].transactions=parseInt(row.metricValues[2].value||0);
+    }
+  });
+  state.daily=dailyMap;
+
+  // 고객 분석
+  const custMap={new:{users:0,revenue:0,transactions:0},returning:{users:0,revenue:0,transactions:0}};
+  (customerData.rows||[]).forEach(row=>{
+    const key=row.dimensionValues[0].value.toLowerCase().includes('new')?'new':'returning';
+    custMap[key].users+=parseInt(row.metricValues[0].value||0);
+    custMap[key].revenue+=parseFloat(row.metricValues[1].value||0);
+    custMap[key].transactions+=parseInt(row.metricValues[2].value||0);
+  });
+  state.customer=custMap;
+
+  // 회원가입 채널
+  state.signupByChannel=[];
+  (signupByChannel.rows||[]).forEach(row=>{
+    const src=row.dimensionValues[0].value, med=row.dimensionValues[1].value;
+    const ch=classifyChannel(src,med,''); if(!ch) return;
+    const count=parseInt(row.metricValues[0].value||0);
+    const existing=state.signupByChannel.find(s=>s.channel===ch);
+    if(existing) existing.count+=count;
+    else state.signupByChannel.push({channel:ch,count});
+  });
+  state.signupByChannel.sort((a,b)=>b.count-a.count);
+
+  // 렌더링
+  renderFunnel();
+  renderMember();
+  behaviorCharts={};
+  renderBehavior();
+  renderCustomer();
+}
 
 async function fetchAll() {
   try {
