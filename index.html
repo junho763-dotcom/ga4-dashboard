@@ -1087,20 +1087,6 @@ function setMode(mode, tab, btn) {
     else if(tab==='member') renderMember();
     else if(tab==='customer') renderCustomer();
     else if(tab==='behavior') {
-      ['hourly-chart','hourly-txn-chart','daily-chart','daily-txn-chart'].forEach(id=>{
-        try {
-          const canvas=document.getElementById(id);
-          if(canvas) {
-            if(typeof Chart!=='undefined') { const ex=Chart.getChart(canvas); if(ex) ex.destroy(); }
-            const p=canvas.parentNode;
-            const nc=document.createElement('canvas');
-            nc.id=id; nc.style.cssText=canvas.style.cssText;
-            p.replaceChild(nc,canvas);
-          }
-        } catch(e){}
-        delete behaviorCharts[id];
-      });
-      behaviorCharts={};
       renderBehavior();
     }
     if(loadingEl && loadingEl.parentNode) loadingEl.parentNode.removeChild(loadingEl);
@@ -1844,78 +1830,101 @@ function renderBehavior() {
   const textColor = '#aaa';
   const gridColor = 'rgba(255,255,255,0.06)';
   const fmtRevAxis = v => { if(v>=1000000) return (v/1000000).toFixed(1)+'M'; if(v>=10000) return (v/10000).toFixed(0)+'만'; return v; };
-
-  // 시간대별 차트
-  behaviorCharts['hourly-chart'] = new Chart(document.getElementById('hourly-chart').getContext('2d'), {
-    type: 'bar',
-    data: {
-      labels: h.map(r => r.hour%3===0?`${r.hour}시`:''),
-      datasets: [
-        { label:'방문자', data:h.map(r=>r.users), backgroundColor:'rgba(79,142,247,0.65)', yAxisID:'y', order:2 },
-        { label:'매출', data:h.map(r=>r.revenue), type:'line', borderColor:'#f59e0b', backgroundColor:'transparent', pointRadius:2, borderWidth:2, yAxisID:'y2', order:1, tension:0.4 }
-      ]
-    },
-    options: {
-      responsive:true, maintainAspectRatio:false,
-      plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label: ctx => ctx.dataset.label==='매출'?'₩'+Math.round(ctx.raw).toLocaleString()+'원':ctx.raw.toLocaleString()+'명' } } },
-      scales:{
-        x:{ ticks:{color:textColor,font:{size:11}}, grid:{color:gridColor} },
-        y:{ ticks:{color:textColor,font:{size:11}}, grid:{color:gridColor}, title:{display:true,text:'방문자',color:textColor,font:{size:11}} },
-        y2:{ position:'right', ticks:{color:'#f59e0b',font:{size:11},callback:fmtRevAxis}, grid:{display:false}, title:{display:true,text:'매출',color:'#f59e0b',font:{size:11}} }
-      }
-    }
-  });
-
-  // 시간대별 구매건수
-  behaviorCharts['hourly-txn-chart'] = new Chart(document.getElementById('hourly-txn-chart').getContext('2d'), {
-    type: 'bar',
-    data: {
-      labels: h.map(r => r.hour%3===0?`${r.hour}시`:''),
-      datasets: [{ label:'구매건수', data:h.map(r=>r.transactions), backgroundColor:'rgba(46,204,138,0.65)' }]
-    },
-    options: {
-      responsive:true, maintainAspectRatio:false,
-      plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label: ctx => ctx.raw.toLocaleString()+'건' } } },
-      scales:{ x:{ticks:{color:textColor,font:{size:11}},grid:{color:gridColor}}, y:{ticks:{color:textColor,font:{size:11}},grid:{color:gridColor}} }
-    }
-  });
-
-  // 요일별 차트 (GA4: 0=일 → 월화수목금토일 순으로 재정렬)
-  const dayOrder = [1,2,3,4,5,6,0]; // 월~일
+  const dayOrder = [1,2,3,4,5,6,0];
   const dayLabelsOrdered = dayOrder.map(i=>d[i]?.label+'요일'||'');
-  behaviorCharts['daily-chart'] = new Chart(document.getElementById('daily-chart').getContext('2d'), {
-    type: 'bar',
-    data: {
-      labels: dayLabelsOrdered,
-      datasets: [
-        { label:'방문자', data:dayOrder.map(i=>d[i]?.users||0), backgroundColor:'rgba(167,139,250,0.65)', yAxisID:'y', order:2 },
-        { label:'매출', data:dayOrder.map(i=>d[i]?.revenue||0), type:'line', borderColor:'#f59e0b', backgroundColor:'transparent', pointRadius:5, borderWidth:2, yAxisID:'y2', order:1, tension:0.3 }
-      ]
-    },
-    options: {
-      responsive:true, maintainAspectRatio:false,
-      plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label: ctx => ctx.dataset.label==='매출'?'₩'+Math.round(ctx.raw).toLocaleString()+'원':ctx.raw.toLocaleString()+'명' } } },
-      scales:{
-        x:{ ticks:{color:textColor,font:{size:12}}, grid:{color:gridColor} },
-        y:{ ticks:{color:textColor,font:{size:11}}, grid:{color:gridColor}, title:{display:true,text:'방문자',color:textColor,font:{size:11}} },
-        y2:{ position:'right', ticks:{color:'#f59e0b',font:{size:11},callback:fmtRevAxis}, grid:{display:false}, title:{display:true,text:'매출',color:'#f59e0b',font:{size:11}} }
-      }
-    }
-  });
 
-  // 요일별 구매건수
-  behaviorCharts['daily-txn-chart'] = new Chart(document.getElementById('daily-txn-chart').getContext('2d'), {
-    type: 'bar',
-    data: {
-      labels: dayLabelsOrdered,
-      datasets: [{ label:'구매건수', data:dayOrder.map(i=>d[i]?.transactions||0), backgroundColor:'rgba(244,114,182,0.65)' }]
-    },
-    options: {
-      responsive:true, maintainAspectRatio:false,
-      plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label: ctx => ctx.raw.toLocaleString()+'건' } } },
-      scales:{ x:{ticks:{color:textColor,font:{size:12}},grid:{color:gridColor}}, y:{ticks:{color:textColor,font:{size:11}},grid:{color:gridColor}} }
-    }
-  });
+  // 차트가 이미 있으면 데이터만 업데이트, 없으면 새로 생성
+  if(behaviorCharts['hourly-chart']) {
+    const c=behaviorCharts['hourly-chart'];
+    c.data.datasets[0].data=h.map(r=>r.users);
+    c.data.datasets[1].data=h.map(r=>r.revenue);
+    c.update('none');
+  } else {
+    behaviorCharts['hourly-chart'] = new Chart(document.getElementById('hourly-chart').getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: h.map(r => r.hour%3===0?`${r.hour}시`:''),
+        datasets: [
+          { label:'방문자', data:h.map(r=>r.users), backgroundColor:'rgba(79,142,247,0.65)', yAxisID:'y', order:2 },
+          { label:'매출', data:h.map(r=>r.revenue), type:'line', borderColor:'#f59e0b', backgroundColor:'transparent', pointRadius:2, borderWidth:2, yAxisID:'y2', order:1, tension:0.4 }
+        ]
+      },
+      options: {
+        responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label: ctx => ctx.dataset.label==='매출'?'₩'+Math.round(ctx.raw).toLocaleString()+'원':ctx.raw.toLocaleString()+'명' } } },
+        scales:{
+          x:{ ticks:{color:textColor,font:{size:11}}, grid:{color:gridColor} },
+          y:{ ticks:{color:textColor,font:{size:11}}, grid:{color:gridColor}, title:{display:true,text:'방문자',color:textColor,font:{size:11}} },
+          y2:{ position:'right', ticks:{color:'#f59e0b',font:{size:11},callback:fmtRevAxis}, grid:{display:false}, title:{display:true,text:'매출',color:'#f59e0b',font:{size:11}} }
+        }
+      }
+    });
+  }
+
+  if(behaviorCharts['hourly-txn-chart']) {
+    const c=behaviorCharts['hourly-txn-chart'];
+    c.data.datasets[0].data=h.map(r=>r.transactions);
+    c.update('none');
+  } else {
+    behaviorCharts['hourly-txn-chart'] = new Chart(document.getElementById('hourly-txn-chart').getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: h.map(r => r.hour%3===0?`${r.hour}시`:''),
+        datasets: [{ label:'구매건수', data:h.map(r=>r.transactions), backgroundColor:'rgba(46,204,138,0.65)' }]
+      },
+      options: {
+        responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label: ctx => ctx.raw.toLocaleString()+'건' } } },
+        scales:{ x:{ticks:{color:textColor,font:{size:11}},grid:{color:gridColor}}, y:{ticks:{color:textColor,font:{size:11}},grid:{color:gridColor}} }
+      }
+    });
+  }
+
+  if(behaviorCharts['daily-chart']) {
+    const c=behaviorCharts['daily-chart'];
+    c.data.datasets[0].data=dayOrder.map(i=>d[i]?.users||0);
+    c.data.datasets[1].data=dayOrder.map(i=>d[i]?.revenue||0);
+    c.update('none');
+  } else {
+    behaviorCharts['daily-chart'] = new Chart(document.getElementById('daily-chart').getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: dayLabelsOrdered,
+        datasets: [
+          { label:'방문자', data:dayOrder.map(i=>d[i]?.users||0), backgroundColor:'rgba(167,139,250,0.65)', yAxisID:'y', order:2 },
+          { label:'매출', data:dayOrder.map(i=>d[i]?.revenue||0), type:'line', borderColor:'#f59e0b', backgroundColor:'transparent', pointRadius:5, borderWidth:2, yAxisID:'y2', order:1, tension:0.3 }
+        ]
+      },
+      options: {
+        responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label: ctx => ctx.dataset.label==='매출'?'₩'+Math.round(ctx.raw).toLocaleString()+'원':ctx.raw.toLocaleString()+'명' } } },
+        scales:{
+          x:{ ticks:{color:textColor,font:{size:12}}, grid:{color:gridColor} },
+          y:{ ticks:{color:textColor,font:{size:11}}, grid:{color:gridColor}, title:{display:true,text:'방문자',color:textColor,font:{size:11}} },
+          y2:{ position:'right', ticks:{color:'#f59e0b',font:{size:11},callback:fmtRevAxis}, grid:{display:false}, title:{display:true,text:'매출',color:'#f59e0b',font:{size:11}} }
+        }
+      }
+    });
+  }
+
+  if(behaviorCharts['daily-txn-chart']) {
+    const c=behaviorCharts['daily-txn-chart'];
+    c.data.datasets[0].data=dayOrder.map(i=>d[i]?.transactions||0);
+    c.update('none');
+  } else {
+    behaviorCharts['daily-txn-chart'] = new Chart(document.getElementById('daily-txn-chart').getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: dayLabelsOrdered,
+        datasets: [{ label:'구매건수', data:dayOrder.map(i=>d[i]?.transactions||0), backgroundColor:'rgba(244,114,182,0.65)' }]
+      },
+      options: {
+        responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label: ctx => ctx.raw.toLocaleString()+'건' } } },
+        scales:{ x:{ticks:{color:textColor,font:{size:12}},grid:{color:gridColor}}, y:{ticks:{color:textColor,font:{size:11}},grid:{color:gridColor}} }
+      }
+    });
+  }
 }
 
 function downloadCSV() {
