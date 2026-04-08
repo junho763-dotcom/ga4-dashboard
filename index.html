@@ -1087,7 +1087,11 @@ function setMode(mode, tab, btn) {
     else if(tab==='member') renderMember();
     else if(tab==='customer') renderCustomer();
     else if(tab==='behavior') {
-      renderBehavior();
+      setTimeout(() => {
+        renderBehavior();
+        if(loadingEl && loadingEl.parentNode) loadingEl.parentNode.removeChild(loadingEl);
+      }, 30);
+      return;
     }
     if(loadingEl && loadingEl.parentNode) loadingEl.parentNode.removeChild(loadingEl);
   }, 30);
