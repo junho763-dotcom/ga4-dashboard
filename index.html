@@ -772,12 +772,14 @@ function classifyChannel(src, med, landingPage) {
   // (not set) 세분류 - landingPage 패턴으로 판단
   if(s==='(not set)'||s===''||m==='(not set)') {
     if(!lp) return 'direct'; // 빈페이지 → 직접유입
-    if(/@[a-zA-Z0-9_]+/.test(lp)) return null; // 공구 제외
+    if(/@[a-zA-Z0-9_]+/.test(lp)) return null; // 공구(@) 제외
+    if(/[?&]seller=/.test(lp)) return null; // 공구(?seller=) 제외
     if(/fbclid=/.test(lp)) return 'facebook'; // 페이스북
     if(/NaPm=/.test(lp)) return 'naver'; // 네이버 napm
-    if(/\/auth\/callback\/kakao|\/login\/social|\/login|\/register|\/payments\/|\/cart/.test(lp)) return 'kakao';
-    if(/\/kr\/products\//.test(lp)) return 'kakao'; // 상품페이지
-    return 'direct'; // 나머지 → 직접유입
+    if(/\/auth\/callback\/kakao/.test(lp)) return 'kakao'; // 카카오 로그인 콜백
+    if(/\/login\/social/.test(lp)) return 'kakao'; // 카카오 소셜 로그인
+    // 로그인/가입/결제/장바구니 → 직접유입 (카카오 알림톡 발송 없는 날도 있음)
+    return 'direct';
   }
 
   // 카카오 알림톡
@@ -806,10 +808,10 @@ function classifySubChannel(src, med, landingPage) {
   if(s==='(not set)'||s===''||m==='(not set)') {
     if(!lp) return 'direct';
     if(/@[a-zA-Z0-9_]+/.test(lp)) return null;
+    if(/[?&]seller=/.test(lp)) return null; // 공구(?seller=) 제외
     if(/fbclid=/.test(lp)) return 'fb_ad';
     if(/NaPm=/.test(lp)) return 'naver_brand';
-    if(/\/auth\/callback\/kakao|\/login\/social|\/login|\/register|\/payments\/|\/cart/.test(lp)) return 'kakao_other';
-    if(/\/kr\/products\//.test(lp)) return 'kakao_other';
+    if(/\/auth\/callback\/kakao|\/login\/social/.test(lp)) return 'kakao_other';
     return 'direct';
   }
 
@@ -1242,7 +1244,12 @@ async function fetchAll() {
 
     // 개요
     const r=ov.rows?.[0]?.metricValues||[];
-    const gonguRev=parseFloat(gonguRevenue.rows?.[0]?.metricValues?.[0]?.value||0);
+    let gonguRev=parseFloat(gonguRevenue.rows?.[0]?.metricValues?.[0]?.value||0);
+    // seller= 패턴 공구 매출도 합산
+    (channelRevenue.rows||[]).forEach(row=>{
+      const src=row.dimensionValues[0].value, med=row.dimensionValues[1].value, lp=(row.dimensionValues[2]?.value||'');
+      if(/[?&]seller=/.test(lp)) gonguRev+=parseFloat(row.metricValues[0].value||0);
+    });
     state.overview={
       users:parseInt(r[0]?.value||0), sessions:parseInt(r[1]?.value||0),
       ppv:parseFloat(r[2]?.value||0), duration:parseFloat(r[3]?.value||0),
