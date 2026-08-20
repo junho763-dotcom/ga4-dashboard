@@ -9,9 +9,9 @@
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
-    --bg: #0a0a0a; --bg2: #111111; --bg3: #1a1a1a;
-    --border: rgba(255,255,255,0.08); --border2: rgba(255,255,255,0.14);
-    --text: #f0f0f0; --text2: #b0b0b0; --text3: #777;
+    --bg: #0b0e13; --bg2: #12161d; --bg3: #1a1f28;
+    --border: rgba(148,163,184,0.10); --border2: rgba(148,163,184,0.18);
+    --text: #edf1f6; --text2: #b9c2cd; --text3: #8b95a3;
     --accent: #4f8ef7; --accent2: #2ecc8a; --danger: #e05555;
     --healthcare: #a78bfa; --medical: #34d399; --amber: #f59e0b; --influencer: #f472b6;
     --font: 'Pretendard Variable', Pretendard, 'Malgun Gothic', sans-serif; --mono: 'Geist Mono', 'Pretendard Variable', Pretendard, monospace;
@@ -273,6 +273,63 @@
   }
   .ux-overlay{position:fixed;inset:0;background:rgba(10,10,10,.6);z-index:500;display:none;align-items:center;justify-content:center;flex-direction:column;gap:14px;}
   .ux-overlay.on{display:flex;}
+
+  /* ═══════ UI refinement layer (2026-08-20) ═══════ */
+  body { font-feature-settings: 'ss05'; letter-spacing: -0.01em; -webkit-font-smoothing: antialiased; }
+  ::selection { background: rgba(79,142,247,0.35); }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: var(--bg3); border-radius: 5px; border: 2px solid var(--bg); }
+  ::-webkit-scrollbar-thumb:hover { background: #242b36; }
+  ::-webkit-scrollbar-track { background: transparent; }
+
+  .sidebar { background: linear-gradient(180deg, #0d1117 0%, #0b0e13 100%); }
+  .logo { font-size: 14px; color: var(--text); }
+  .nav-label { color: var(--text3); margin-top: 14px; }
+  .nav-item { border-radius: 8px; padding: 8px 11px; transition: background .15s, color .15s; }
+  .nav-item.active { background: rgba(79,142,247,0.12); color: var(--text); font-weight: 600; }
+  .nav-item.active .nav-dot { box-shadow: 0 0 8px currentColor; }
+
+  .page-title { font-weight: 700; letter-spacing: -0.02em; }
+  .page-sub { color: var(--text3); }
+
+  .metric-card, .cat-card, .chart-card, .channel-card, .full-table-card {
+    border-radius: 14px; background: linear-gradient(180deg, rgba(255,255,255,0.015) 0%, rgba(255,255,255,0) 60%), var(--bg2);
+    transition: border-color .2s, transform .15s;
+  }
+  .metric-card:hover { border-color: var(--border2); transform: translateY(-1px); }
+  .metric-label { color: var(--text3); font-weight: 600; }
+  .metric-value { font-weight: 650; font-variant-numeric: tabular-nums; letter-spacing: -0.03em; }
+  .metric-desc { color: var(--text3); }
+  .metric-card.highlight { border-color: rgba(46,204,138,0.35); background: linear-gradient(180deg, rgba(46,204,138,0.07) 0%, rgba(46,204,138,0.02) 100%), var(--bg2); }
+
+  .chart-title { color: var(--text2); font-weight: 600; }
+  .chart-desc, .ch-label, .cat-metric-label { color: var(--text3); }
+
+  .tbl th { color: var(--text3); font-weight: 600; padding: 0 8px 10px; }
+  .tbl td { padding: 11px 8px; font-variant-numeric: tabular-nums; }
+  .tbl tbody tr { transition: background .12s; }
+  .tbl tr:hover td { background: rgba(79,142,247,0.05); }
+
+  .hbar-track { height: 9px; border-radius: 5px; background: rgba(148,163,184,0.10); }
+  .hbar-fill { border-radius: 5px; }
+  .hbar-label, .hbar-val { color: var(--text2); font-variant-numeric: tabular-nums; }
+
+  .funnel-step { border-radius: 10px; }
+  .funnel-step-num { font-weight: 650; font-variant-numeric: tabular-nums; }
+
+  .mode-toggle, .date-tabs { border-radius: 10px; background: var(--bg2); }
+  .mode-btn, .date-tab { border-radius: 7px; }
+  .mode-btn.active, .date-tab.active { background: rgba(79,142,247,0.14); border: 1px solid rgba(79,142,247,0.35); color: var(--text); }
+  .date-picker-btn, .btn-csv { border-radius: 10px; }
+  .btn-csv:hover { border-color: rgba(46,204,138,0.5); }
+
+  .insight-box { border-radius: 12px; line-height: 1.75; }
+  .insight-box strong { font-weight: 650; }
+  .pill { font-weight: 600; letter-spacing: 0; }
+  .section-divider { color: var(--text3); letter-spacing: 0.1em; }
+  .login-card { border-radius: 20px; }
+  .btn-google { border-radius: 10px; }
+  .mobile-tab.active { font-weight: 600; }
 </style>
 </head>
 <body>
