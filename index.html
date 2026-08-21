@@ -2150,9 +2150,10 @@ async function fetchUX(){
     const [ev, pay, chNow, chPrev, prod] = await Promise.all([
       fetchGA({dateRanges:dr, dimensions:[{name:'eventName'}], metrics:[{name:'totalUsers'}],
         dimensionFilter: uxAnd(UX_OWN, {filter:{fieldName:'eventName',inListFilter:{values:evList}}})}),
-      fetchGA({dateRanges:dr, dimensions:[{name:'pagePath'}], metrics:[{name:'totalUsers'}],
-        dimensionFilter: uxAnd(UX_OWN, {filter:{fieldName:'pagePath',stringFilter:{matchType:'CONTAINS',value:'/kr/payments'}}}),
-        limit:2000}),
+      /* 디멘션 없이 조회해야 중복 제거된 실제 사용자 수가 나온다.
+         pagePath를 쪼개면 주문ID별로 24,000행 이상 나뉘어 max/sum 모두 틀린다. */
+      fetchGA({dateRanges:dr, metrics:[{name:'totalUsers'}],
+        dimensionFilter: uxAnd(UX_OWN, {filter:{fieldName:'pagePath',stringFilter:{matchType:'CONTAINS',value:'/kr/payments'}}})}),
       fetchGA({dateRanges:dr, dimensions:[{name:'sessionSource'},{name:'sessionMedium'}],
         metrics:[{name:'sessions'},{name:'transactions'}], dimensionFilter:UX_OWN, limit:2000}),
       prev ? fetchGA({dateRanges:[prev], dimensions:[{name:'sessionSource'},{name:'sessionMedium'}],
@@ -2172,7 +2173,7 @@ async function fetchUX(){
 function renderUX(D){
   /* ─── 1. 퍼널 ─── */
   const E={}; (D.ev.rows||[]).forEach(r=> E[r.dimensionValues[0].value]=parseInt(r.metricValues[0].value||0));
-  let payUsers=0; (D.pay.rows||[]).forEach(r=>{ payUsers=Math.max(payUsers, parseInt(r.metricValues[0].value||0)); });
+  const payUsers = D.pay.rows && D.pay.rows[0] ? parseInt(D.pay.rows[0].metricValues[0].value||0) : 0;
   const base = E['session_start']||0;
   const steps = [
     ['사이트 방문', base, 'var(--accent)'],
@@ -2186,7 +2187,8 @@ function renderUX(D){
   document.getElementById('ux-funnel').innerHTML = steps.map((s,i)=>{
     const pct = base>0 ? s[1]/base*100 : 0;
     const per100 = base>0 ? (s[1]/base*100) : 0;
-    const drop = i>0 && steps[i-1][1]>0 ? (1-s[1]/steps[i-1][1])*100 : null;
+    let drop = i>0 && steps[i-1][1]>0 ? (1-s[1]/steps[i-1][1])*100 : null;
+    if(drop!==null && drop<0) drop=null;   /* 다음 단계가 더 크면 측정 누락 — 표시하지 않음 */
     const isWorst = i===worst.i && i>0;
     return `<div class="hbar-row" style="margin-bottom:4px;">
       <span class="hbar-label" style="width:130px;font-family:var(--font);">${s[0]}</span>
