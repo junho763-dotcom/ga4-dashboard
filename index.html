@@ -593,11 +593,12 @@
           <div id="funnel-steps" style="margin-top:1.5rem;"></div>
         </div>
         <div class="metrics-grid">
-          <div class="metric-card"><div class="metric-label">상품 조회</div><div class="metric-value" id="f-view">—</div><div class="metric-desc">상품 페이지를 클릭한 횟수</div></div>
-          <div class="metric-card"><div class="metric-label">장바구니 담기</div><div class="metric-value blue" id="f-cart">—</div><div class="metric-desc">장바구니에 넣은 횟수</div></div>
-          <div class="metric-card"><div class="metric-label">결제 시작</div><div class="metric-value amber" id="f-checkout">—</div><div class="metric-desc">결제 페이지까지 간 횟수</div></div>
-          <div class="metric-card highlight"><div class="metric-label">구매 완료</div><div class="metric-value green" id="f-purchase">—</div><div class="metric-desc">실제로 구매 완료한 횟수</div></div>
+          <div class="metric-card"><div class="metric-label">상품 조회</div><div class="metric-value" id="f-view">—</div><div class="metric-desc">상품 상세를 본 사람 수</div></div>
+          <div class="metric-card"><div class="metric-label">장바구니 담기 <span style="font-size:9px;color:var(--text3);">(분기)</span></div><div class="metric-value blue" id="f-cart">—</div><div class="metric-desc">장바구니에 담은 사람 수</div></div>
+          <div class="metric-card"><div class="metric-label">결제 시작</div><div class="metric-value amber" id="f-checkout">—</div><div class="metric-desc">결제를 시작한 사람 수</div></div>
+          <div class="metric-card highlight"><div class="metric-label">구매 완료</div><div class="metric-value green" id="f-purchase">—</div><div class="metric-desc">구매를 마친 사람 수</div></div>
         </div>
+        <div class="insight-box" id="f-cart-note" style="margin-bottom:1.5rem;">—</div>
         <div class="cat-grid">
           <div class="cat-card">
             <div class="cat-header"><span class="cat-badge badge-hc">헬스케어 추정</span></div>
@@ -1132,12 +1133,16 @@ const fmtTime=s=>{const sec=Math.round(parseFloat(s||0));const m=Math.floor(sec/
 const fmtMoney=n=>Math.round(parseFloat(n||0)).toLocaleString('ko-KR')+'원';
 const fmtMoneyShort=n=>{const v=Math.round(parseFloat(n||0));if(v>=100000000)return (v/100000000).toFixed(1)+'억';if(v>=10000)return Math.round(v/10000).toLocaleString()+'만';return v.toLocaleString()+'원';};
 
-// gongu 제외 필터
-const GONGU_EXCLUDE = {
-  notExpression: {
-    filter: { fieldName:'sessionMedium', stringFilter:{ matchType:'EXACT', value:'gongu' } }
-  }
-};
+/* 공구 제외 필터 — 세 신호 중 하나라도 걸리면 공구로 간주해 제외
+   ① 유입 매체가 gongu   ② 유입 출처가 @핸들   ③ 랜딩 주소에 @핸들 포함
+   (②③은 UTM 매체 태깅이 누락된 공구 링크를 잡기 위한 것) */
+const GONGU_SIGNALS = [
+  { filter:{ fieldName:'sessionMedium', stringFilter:{ matchType:'EXACT',       value:'gongu' } } },
+  { filter:{ fieldName:'sessionSource', stringFilter:{ matchType:'BEGINS_WITH', value:'@' } } },
+  { filter:{ fieldName:'landingPage',   stringFilter:{ matchType:'CONTAINS',    value:'@' } } }
+];
+const GONGU_ONLY    = { orGroup:      { expressions: GONGU_SIGNALS } };
+const GONGU_EXCLUDE = { notExpression:{ orGroup: { expressions: GONGU_SIGNALS } } };
 
 function setMode(mode, tab, btn) {
   if(currentMode === mode) return;
@@ -1223,13 +1228,14 @@ async function fetchAnalysisData() {
     return {...body, dimensionFilter: filter};
   };
 
-  const [eventData, signupByChannel, hourlyData, dailyData, customerData, newVsReturn] = await Promise.all([
-    fetchGA(addFilter({dateRanges:dr, dimensions:[{name:'eventName'}], metrics:[{name:'eventCount'},{name:'totalUsers'}], dimensionFilter:{filter:{fieldName:'eventName',inListFilter:{values:['view_item','add_to_cart','begin_checkout','purchase','sign_up','first_visit']}}}})),
+  const [eventData, signupByChannel, hourlyData, dailyData, customerData, newVsReturn, payPage] = await Promise.all([
+    fetchGA(addFilter({dateRanges:dr, dimensions:[{name:'eventName'}], metrics:[{name:'eventCount'},{name:'totalUsers'}], dimensionFilter:{filter:{fieldName:'eventName',inListFilter:{values:['session_start','view_item','add_to_cart','begin_checkout','purchase','sign_up','first_visit']}}}})),
     fetchGA(addFilter({dateRanges:dr, dimensions:[{name:'sessionSource'},{name:'sessionMedium'}], metrics:[{name:'eventCount'}], dimensionFilter:{filter:{fieldName:'eventName',stringFilter:{matchType:'EXACT',value:'sign_up'}}}, orderBys:[{metric:{metricName:'eventCount'},desc:true}], limit:20})),
     fetchGA(addFilter({dateRanges:dr, dimensions:[{name:'hour'}], metrics:[{name:'activeUsers'},{name:'totalRevenue'},{name:'transactions'}], orderBys:[{dimension:{dimensionName:'hour'}}], limit:24})),
     fetchGA(addFilter({dateRanges:dr, dimensions:[{name:'dayOfWeek'}], metrics:[{name:'activeUsers'},{name:'totalRevenue'},{name:'transactions'}], orderBys:[{dimension:{dimensionName:'dayOfWeek'}}], limit:7})),
     fetchGA(addFilter({dateRanges:dr, dimensions:[{name:'newVsReturning'}], metrics:[{name:'activeUsers'},{name:'totalRevenue'},{name:'transactions'}]})),
-    fetchGA(addFilter({dateRanges:dr, dimensions:[{name:'newVsReturning'}], metrics:[{name:'activeUsers'},{name:'eventCount'}], dimensionFilter:{filter:{fieldName:'eventName',stringFilter:{matchType:'EXACT',value:'sign_up'}}}}))
+    fetchGA(addFilter({dateRanges:dr, dimensions:[{name:'newVsReturning'}], metrics:[{name:'activeUsers'},{name:'eventCount'}], dimensionFilter:{filter:{fieldName:'eventName',stringFilter:{matchType:'EXACT',value:'sign_up'}}}})),
+    fetchGA(addFilter({dateRanges:dr, metrics:[{name:'totalUsers'}], dimensionFilter:{filter:{fieldName:'pagePath',stringFilter:{matchType:'CONTAINS',value:'/kr/payments'}}}}))
   ]);
 
   // 이벤트 데이터
@@ -1241,7 +1247,13 @@ async function fetchAnalysisData() {
     beginCheckout:evtMap['begin_checkout']?.count||0,
     purchase:evtMap['purchase']?.count||0,
     purchaseUsers:evtMap['purchase']?.users||0,
-    firstVisit:evtMap['first_visit']?.count||0
+    firstVisit:evtMap['first_visit']?.count||0,
+    uSession:evtMap['session_start']?.users||0,
+    uView:evtMap['view_item']?.users||0,
+    uCart:evtMap['add_to_cart']?.users||0,
+    uCheckout:evtMap['begin_checkout']?.users||0,
+    uPurchase:evtMap['purchase']?.users||0,
+    uPayPage:parseInt(payPage.rows?.[0]?.metricValues?.[0]?.value||0)
   };
   state.signup={ total:evtMap['sign_up']?.count||0, firstVisit:evtMap['first_visit']?.count||0, newUsers:state.newVsReturn?.new||0 };
 
@@ -1353,28 +1365,27 @@ async function fetchAll() {
   behaviorCharts={};
   try {
     const dr=[{startDate, endDate}];
-    const [ov, newVsReturn, productPages, channelData, eventData, signupByChannel, channelRevenue, gonguRevenue, hourlyData, dailyData, customerData] = await Promise.all([
+    const [ov, newVsReturn, productPages, channelData, eventData, signupByChannel, channelRevenue, gonguRevenue, hourlyData, dailyData, customerData, payPage] = await Promise.all([
       fetchGA({dateRanges:dr, metrics:[{name:'activeUsers'},{name:'sessions'},{name:'screenPageViewsPerSession'},{name:'averageSessionDuration'},{name:'totalRevenue'},{name:'transactions'}]}),
       fetchGA({dateRanges:dr, dimensions:[{name:'newVsReturning'}], metrics:[{name:'activeUsers'},{name:'eventCount'}], dimensionFilter:{filter:{fieldName:'eventName',stringFilter:{matchType:'EXACT',value:'sign_up'}}}}),
       fetchGA({dateRanges:dr, dimensions:[{name:'pagePath'}], metrics:[{name:'activeUsers'},{name:'averageSessionDuration'},{name:'engagementRate'},{name:'screenPageViews'}], dimensionFilter:{filter:{fieldName:'pagePath',stringFilter:{matchType:'CONTAINS',value:'/kr/products/'}}}, orderBys:[{metric:{metricName:'activeUsers'},desc:true}], limit:300}),
       fetchGA({dateRanges:dr, dimensions:[{name:'sessionSource'},{name:'sessionMedium'},{name:'landingPage'}], metrics:[{name:'activeUsers'},{name:'averageSessionDuration'},{name:'engagementRate'},{name:'screenPageViewsPerSession'}], orderBys:[{metric:{metricName:'activeUsers'},desc:true}], limit:1000}),
-      fetchGA({dateRanges:dr, dimensions:[{name:'eventName'}], metrics:[{name:'eventCount'},{name:'totalUsers'}], dimensionFilter:{filter:{fieldName:'eventName',inListFilter:{values:['view_item','add_to_cart','begin_checkout','purchase','sign_up','first_visit']}}}}),
+      fetchGA({dateRanges:dr, dimensions:[{name:'eventName'}], metrics:[{name:'eventCount'},{name:'totalUsers'}], dimensionFilter:{filter:{fieldName:'eventName',inListFilter:{values:['session_start','view_item','add_to_cart','begin_checkout','purchase','sign_up','first_visit']}}}}),
       fetchGA({dateRanges:dr, dimensions:[{name:'sessionSource'},{name:'sessionMedium'}], metrics:[{name:'eventCount'}], dimensionFilter:{filter:{fieldName:'eventName',stringFilter:{matchType:'EXACT',value:'sign_up'}}}, orderBys:[{metric:{metricName:'eventCount'},desc:true}], limit:20}),
       fetchGA({dateRanges:dr, dimensions:[{name:'sessionSource'},{name:'sessionMedium'},{name:'landingPage'}], metrics:[{name:'totalRevenue'}], orderBys:[{metric:{metricName:'totalRevenue'},desc:true}], limit:1000}),
-      fetchGA({dateRanges:dr, metrics:[{name:'totalRevenue'}], dimensionFilter:{filter:{fieldName:'sessionMedium',stringFilter:{matchType:'EXACT',value:'gongu'}}}}),
+      fetchGA({dateRanges:dr, metrics:[{name:'totalRevenue'}], dimensionFilter:GONGU_ONLY}),
       fetchGA({dateRanges:dr, dimensions:[{name:'hour'}], metrics:[{name:'activeUsers'},{name:'totalRevenue'},{name:'transactions'}], orderBys:[{dimension:{dimensionName:'hour'}}], limit:24}),
       fetchGA({dateRanges:dr, dimensions:[{name:'dayOfWeek'}], metrics:[{name:'activeUsers'},{name:'totalRevenue'},{name:'transactions'}], orderBys:[{dimension:{dimensionName:'dayOfWeek'}}], limit:7}),
-      fetchGA({dateRanges:dr, dimensions:[{name:'newVsReturning'}], metrics:[{name:'activeUsers'},{name:'totalRevenue'},{name:'transactions'}]})
+      fetchGA({dateRanges:dr, dimensions:[{name:'newVsReturning'}], metrics:[{name:'activeUsers'},{name:'totalRevenue'},{name:'transactions'}]}),
+      /* 결제 화면 도달 사용자 — 디멘션 없이 조회해야 중복 제거된 값이 나온다 */
+      fetchGA({dateRanges:dr, metrics:[{name:'totalUsers'}], dimensionFilter:{filter:{fieldName:'pagePath',stringFilter:{matchType:'CONTAINS',value:'/kr/payments'}}}})
     ]);
 
     // 개요
     const r=ov.rows?.[0]?.metricValues||[];
-    let gonguRev=parseFloat(gonguRevenue.rows?.[0]?.metricValues?.[0]?.value||0);
-    // seller= 패턴 공구 매출도 합산
-    (channelRevenue.rows||[]).forEach(row=>{
-      const src=row.dimensionValues[0].value, med=row.dimensionValues[1].value, lp=(row.dimensionValues[2]?.value||'');
-      if(/[?&]seller=/.test(lp)) gonguRev+=parseFloat(row.metricValues[0].value||0);
-    });
+    /* GONGU_ONLY 가 @핸들 신호를 이미 포함하므로 별도 보정 불필요 */
+    const gonguRev=parseFloat(gonguRevenue.rows?.[0]?.metricValues?.[0]?.value||0);
+
     state.overview={
       users:parseInt(r[0]?.value||0), sessions:parseInt(r[1]?.value||0),
       ppv:parseFloat(r[2]?.value||0), duration:parseFloat(r[3]?.value||0),
@@ -1400,7 +1411,14 @@ async function fetchAll() {
       beginCheckout:evtMap['begin_checkout']?.count||0,
       purchase:evtMap['purchase']?.count||0,
       purchaseUsers:evtMap['purchase']?.users||0,
-      firstVisit:evtMap['first_visit']?.count||0
+      firstVisit:evtMap['first_visit']?.count||0,
+      /* 사람 수 — 퍼널은 반드시 사람 수로 그린다 (횟수는 단계마다 중복 배수가 달라 이탈률이 왜곡됨) */
+      uSession:evtMap['session_start']?.users||0,
+      uView:evtMap['view_item']?.users||0,
+      uCart:evtMap['add_to_cart']?.users||0,
+      uCheckout:evtMap['begin_checkout']?.users||0,
+      uPurchase:evtMap['purchase']?.users||0,
+      uPayPage:parseInt(payPage.rows?.[0]?.metricValues?.[0]?.value||0)
     };
     state.signup={
       total:evtMap['sign_up']?.count||0,
@@ -1767,11 +1785,16 @@ function renderChannel() {
 function renderFunnel() {
   const f=state.funnel;
   const o=state.overview;
+  /* 사람 수 기준 선형 퍼널.
+     장바구니는 «단계»가 아니다 — 바로구매가 장바구니를 건너뛰므로
+     결제 시작(사람 수)이 장바구니 담기보다 많아져 이탈률이 음수가 된다.
+     따라서 장바구니는 아래에 «분기 경로»로 따로 표시한다. */
   const steps=[
-    {label:'세션 시작', val:o.sessions, desc:'사이트 방문 횟수'},
-    {label:'장바구니', val:f.addCart, desc:'장바구니에 담기'},
-    {label:'결제 시작', val:f.beginCheckout, desc:'결제 진행'},
-    {label:'구매 완료', val:f.purchase, desc:'최종 구매'}
+    {label:'사이트 방문', val:f.uSession, desc:'세션을 시작한 사람'},
+    {label:'상품 조회',   val:f.uView,     desc:'상품 상세를 본 사람'},
+    {label:'결제 화면',   val:f.uPayPage,  desc:'결제 화면에 도달한 사람'},
+    {label:'결제 시작',   val:f.uCheckout, desc:'결제를 시작한 사람'},
+    {label:'구매 완료',   val:f.uPurchase, desc:'구매를 마친 사람'}
   ].filter(s=>s.val>0);
 
   const max=steps[0]?.val||1;
@@ -1781,7 +1804,8 @@ function renderFunnel() {
     return dropPct>worst.pct?{label:steps[i-1].label,pct:dropPct}:worst;
   },{label:'',pct:0});
 
-  document.getElementById('funnel-insight').innerHTML=`가장 많이 이탈하는 구간은 <strong>${worstDrop.label} → 다음 단계</strong>로, <strong>${worstDrop.pct.toFixed(0)}%</strong>가 이 단계에서 나가요. 이 구간 개선이 매출 향상에 가장 효과적이에요.`;
+  document.getElementById('funnel-insight').innerHTML=`가장 많이 이탈하는 구간은 <strong>${worstDrop.label} → 다음 단계</strong>로, <strong>${worstDrop.pct.toFixed(0)}%</strong>가 이 단계에서 나가요. 이 구간 개선이 매출 향상에 가장 효과적이에요.
+    <br><span style="font-size:12px;color:var(--text3);">모든 수치는 «사람 수»입니다. 같은 사람이 여러 번 해도 1명으로 셉니다.</span>`;
 
   document.getElementById('funnel-steps').innerHTML=`<div class="funnel-wrap">${steps.map((s,i)=>{
     const pct=Math.round((s.val/max)*100);
@@ -1796,10 +1820,19 @@ function renderFunnel() {
     </div>`;
   }).join('')}</div>`;
 
-  document.getElementById('f-view').textContent=fmtNum(f.viewItem);
-  document.getElementById('f-cart').textContent=fmtNum(f.addCart);
-  document.getElementById('f-checkout').textContent=fmtNum(f.beginCheckout);
-  document.getElementById('f-purchase').textContent=fmtNum(f.purchase);
+  document.getElementById('f-view').textContent=fmtNum(f.uView);
+  document.getElementById('f-cart').textContent=fmtNum(f.uCart);
+  document.getElementById('f-checkout').textContent=fmtNum(f.uCheckout);
+  document.getElementById('f-purchase').textContent=fmtNum(f.uPurchase);
+  /* 장바구니 분기 경로 안내 */
+  const cartNote=document.getElementById('f-cart-note');
+  if(cartNote){
+    const viaCart=f.uCheckout>0?(f.uCart/f.uCheckout*100):0;
+    cartNote.innerHTML=`장바구니는 퍼널의 «단계»가 아니라 <strong>분기 경로</strong>입니다.
+      결제를 시작한 ${fmtNum(f.uCheckout)}명 중 장바구니를 거친 사람은 ${fmtNum(f.uCart)}명(${viaCart.toFixed(0)}%)이고,
+      나머지는 상품 페이지에서 «바로구매»로 결제에 들어갑니다.
+      그래서 위 퍼널에서는 순서에 넣지 않았습니다.`;
+  }
 
   const hcUsers=state.products.filter(p=>p.category==='healthcare').reduce((s,r)=>s+r.users,0);
   const mdUsers=state.products.filter(p=>p.category==='medical').reduce((s,r)=>s+r.users,0);
