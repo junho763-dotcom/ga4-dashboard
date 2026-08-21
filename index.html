@@ -1139,7 +1139,10 @@ const fmtMoneyShort=n=>{const v=Math.round(parseFloat(n||0));if(v>=100000000)ret
 const GONGU_SIGNALS = [
   { filter:{ fieldName:'sessionMedium', stringFilter:{ matchType:'EXACT',       value:'gongu' } } },
   { filter:{ fieldName:'sessionSource', stringFilter:{ matchType:'BEGINS_WITH', value:'@' } } },
-  { filter:{ fieldName:'landingPage',   stringFilter:{ matchType:'CONTAINS',    value:'@' } } }
+  /* landingPage 에는 쿼리스트링이 없어 seller= 를 못 잡는다.
+     landingPagePlusQueryString 을 써야 둘 다 잡힌다 (@ 매칭 결과는 동일). */
+  { filter:{ fieldName:'landingPagePlusQueryString', stringFilter:{ matchType:'CONTAINS', value:'@' } } },
+  { filter:{ fieldName:'landingPagePlusQueryString', stringFilter:{ matchType:'CONTAINS', value:'seller=' } } }
 ];
 const GONGU_ONLY    = { orGroup:      { expressions: GONGU_SIGNALS } };
 const GONGU_EXCLUDE = { notExpression:{ orGroup: { expressions: GONGU_SIGNALS } } };
@@ -2132,11 +2135,7 @@ function renderCustomer() {
 
 /* ══════════════════ UX 진단 탭 ══════════════════ */
 /* 자사몰(공구 제외) B기준 — medium=gongu / source가 @로 시작 / landingPage에 @ 포함 */
-const UX_OWN = { notExpression: { orGroup: { expressions: [
-  { filter:{ fieldName:'sessionMedium',  stringFilter:{ matchType:'EXACT',       value:'gongu' } } },
-  { filter:{ fieldName:'sessionSource',  stringFilter:{ matchType:'BEGINS_WITH', value:'@' } } },
-  { filter:{ fieldName:'landingPage',    stringFilter:{ matchType:'CONTAINS',    value:'@' } } }
-]}}};
+const UX_OWN = GONGU_EXCLUDE;   /* 위 GONGU_SIGNALS 와 동일 기준 사용 */
 const uxAnd = (...f) => f.length===1 ? f[0] : { andGroup:{ expressions:f } };
 
 /* 신뢰도 — 구매 건수 기준 */
